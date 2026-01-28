@@ -3,6 +3,7 @@ import {
   Links,
   Meta,
   Outlet,
+  useNavigation,
   Scripts,
   ScrollRestoration,
 } from "react-router";
@@ -42,7 +43,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  const navigation = useNavigation();
+  const isLoading = navigation.state === "loading";
+
+  return (
+    <>
+      {isLoading && (
+        <div className="fixed inset-x-0 top-0 z-50">
+          <div className="h-1 w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 animate-pulse" />
+          <div className="flex justify-center">
+            <div className="mt-3 rounded-full bg-white/95 px-3 py-1 text-xs font-medium text-slate-700 shadow-sm ring-1 ring-slate-200">
+              로딩 중...
+            </div>
+          </div>
+        </div>
+      )}
+      <Outlet />
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
