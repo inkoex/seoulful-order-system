@@ -1,4 +1,4 @@
-import { Link, useLoaderData, data } from "react-router";
+import { Link, useLoaderData, useFetcher, data } from "react-router";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -50,8 +50,34 @@ export async function loader({ request }: Route.LoaderArgs) {
     return data({ products: sortedProducts });
 }
 
+export async function action({ request }: Route.ActionArgs) {
+    await requireAuth(request);
+
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+    const id = formData.get("id") as string;
+
+    if (intent === "toggle") {
+        const isActive = formData.get("is_active") === "true";
+
+        const { error } = await supabaseAdmin
+            .from('products')
+            .update({ is_active: !isActive })
+            .eq('id', id);
+
+        if (error) {
+            return data({ error: `상태 변경 실패: ${error.message}` }, { status: 500 });
+        }
+
+        return data({ success: true });
+    }
+
+    return data({ error: "잘못된 요청입니다" }, { status: 400 });
+}
+
 export default function AdminProductsPage() {
     const { products } = useLoaderData<typeof loader>();
+    const fetcher = useFetcher();
 
     return (
         <PageContainer size="wide">
@@ -126,11 +152,18 @@ export default function AdminProductsPage() {
                                                 ₹{product.price}
                                             </TableCell>
                                             <TableCell>
-                                                {product.is_active ? (
-                                                    <Badge variant="default" className="bg-green-600">활성</Badge>
-                                                ) : (
-                                                    <Badge variant="secondary">비활성</Badge>
-                                                )}
+                                                <fetcher.Form method="post">
+                                                    <input type="hidden" name="intent" value="toggle" />
+                                                    <input type="hidden" name="id" value={product.id} />
+                                                    <input type="hidden" name="is_active" value={String(product.is_active)} />
+                                                    <button type="submit">
+                                                        {product.is_active ? (
+                                                            <Badge variant="default" className="bg-green-600 cursor-pointer hover:bg-green-700">활성</Badge>
+                                                        ) : (
+                                                            <Badge variant="secondary" className="cursor-pointer hover:bg-gray-300">비활성</Badge>
+                                                        )}
+                                                    </button>
+                                                </fetcher.Form>
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">

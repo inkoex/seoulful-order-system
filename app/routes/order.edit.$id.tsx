@@ -24,7 +24,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.edit.$id";
 
@@ -57,7 +57,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     }
 
     // Fetch order with items
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
         .select(`
             *,
@@ -70,21 +70,17 @@ export async function loader({ params, request }: Route.LoaderArgs) {
             )
         `)
         .eq('id', orderId)
+        .eq('edit_token', token)
         .single();
 
     if (orderError || !order) {
-        return data({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
-    }
-
-    // Verify token
-    if (order.edit_token !== token) {
         return data({
-            error: "접근 권한이 없습니다. 올바른 토큰을 사용해주세요."
+            error: "접근 권한이 없습니다. 올바른 링크를 사용해주세요."
         }, { status: 403 });
     }
 
     // Fetch all products for form
-    const { data: products } = await supabase
+    const { data: products } = await supabaseAdmin
         .from('products')
         .select('*')
         .eq('is_active', true)
@@ -109,20 +105,20 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     const payload = JSON.parse(payloadString);
+    if (payload.delivery_date) {
+        payload.delivery_date = new Date(payload.delivery_date);
+    }
     const token = payload.token;
 
     // Validate token
-    const { data: existingOrder, error: fetchError } = await supabase
+    const { data: existingOrder, error: fetchError } = await supabaseAdmin
         .from('orders')
         .select('edit_token, is_locked, delivery_date, order_items(product_id, quantity), notes')
         .eq('id', orderId)
+        .eq('edit_token', token)
         .single();
 
     if (fetchError || !existingOrder) {
-        return data({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
-    }
-
-    if (existingOrder.edit_token !== token) {
         return data({ error: "접근 권한이 없습니다." }, { status: 403 });
     }
 
@@ -155,7 +151,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     const { items, delivery_date, notes } = result.data;
 
     // Calculate new total
-    const { data: dbProducts } = await supabase.from('products').select('*');
+    const { data: dbProducts } = await supabaseAdmin.from('products').select('*');
     const productMap = new Map(dbProducts?.map(p => [p.id, p]) || []);
 
     let totalAmount = 0;
@@ -221,7 +217,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     // Update order
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseAdmin
         .from('orders')
         .update({
             delivery_date: newDateStr,
@@ -239,7 +235,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     // Delete old items and insert new ones
-    await supabase.from('order_items').delete().eq('order_id', orderId);
+    await supabaseAdmin.from('order_items').delete().eq('order_id', orderId);
 
     if (orderItemsData.length > 0) {
         const itemsToInsert = orderItemsData.map(i => ({
@@ -247,7 +243,7 @@ export async function action({ request, params }: Route.ActionArgs) {
             order_id: orderId
         }));
 
-        const { error: itemsError } = await supabase
+        const { error: itemsError } = await supabaseAdmin
             .from('order_items')
             .insert(itemsToInsert);
 
@@ -261,7 +257,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 
     // Log to order_history
     if (Object.keys(changedFields).length > 0) {
-        await supabase.from('order_history').insert({
+        await supabaseAdmin.from('order_history').insert({
             order_id: orderId,
             changed_fields: changedFields,
             changed_by: 'customer'
@@ -358,7 +354,7 @@ export default function OrderEditPage() {
                     )}
 
                     {/* Customer Info (Read-only) */}
-                    <Card className="mb-6 bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                    <Card className="mb-6 bg-white border-slate-200">
                         <CardHeader>
                             <CardTitle className="text-lg">주문 정보</CardTitle>
                             <CardDescription>변경할 수 없는 정보입니다</CardDescription>

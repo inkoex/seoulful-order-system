@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Form, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
+import { Link, Form, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
 import { z } from "zod";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -88,51 +88,25 @@ export async function loader() {
         .eq('is_active', true)
         .order('sort_order', { ascending: true });
 
-    if (error || !products || products.length === 0) {
-        // Fallback data for dev/testing if DB is empty
-        console.warn("Using fallback products data", error);
-        return {
-            products: [
-                { id: 'uuid-1', name: 'Salt Bread', name_ko: '소금빵', price: 100, category: 'bread' },
-                { id: 'uuid-2', name: 'Kkwabaegi', name_ko: '꽈배기', price: 80, category: 'bread' },
-                { id: 'uuid-3', name: 'Plain Bread', name_ko: '식빵 (플레인)', price: 150, category: 'bread' },
-                { id: 'uuid-4', name: 'Choco Bread', name_ko: '식빵 (초코)', price: 180, category: 'bread' },
-            ],
-            apartments: [
-                { id: 'fallback-1', name: 'Karle', name_ko: '칼레', sort_order: 1 },
-                { id: 'fallback-2', name: 'Other', name_ko: '기타', sort_order: 99 },
-            ]
-        };
+    if (error) {
+        console.error("Supabase products fetch error", error);
+        return { products: [], apartments: [] };
     }
 
-    if (aptError || !apartments || apartments.length === 0) {
-        console.warn("Using fallback apartments data", aptError);
-        // Sort by category sort_order, then by product sort_order
-        const sortedProducts = products.sort((a: any, b: any) => {
-            const catSortA = a.categories?.sort_order ?? 999;
-            const catSortB = b.categories?.sort_order ?? 999;
-            if (catSortA !== catSortB) return catSortA - catSortB;
-            return (a.sort_order || 0) - (b.sort_order || 0);
-        });
-
-        return {
-            products: sortedProducts,
-            apartments: [
-                { id: 'fallback-1', name: 'Karle', name_ko: '칼레', sort_order: 1 },
-                { id: 'fallback-2', name: 'Other', name_ko: '기타', sort_order: 99 },
-            ]
-        };
+    if (aptError) {
+        console.error("Supabase apartments fetch error", aptError);
+        return { products: [], apartments: [] };
     }
 
     // Sort by category sort_order, then by product sort_order
-    const sortedProducts = products.sort((a: any, b: any) => {
+    const sortedProducts = (products || []).sort((a: any, b: any) => {
         const catSortA = a.categories?.sort_order ?? 999;
         const catSortB = b.categories?.sort_order ?? 999;
         if (catSortA !== catSortB) return catSortA - catSortB;
         return (a.sort_order || 0) - (b.sort_order || 0);
     });
 
-    return { products: sortedProducts, apartments };
+    return { products: sortedProducts, apartments: apartments || [] };
 }
 
 // --- Action ---
@@ -226,6 +200,28 @@ type ActionResponse =
 // --- Component ---
 export default function OrderPage({ loaderData }: Route.ComponentProps) {
     const { products, apartments } = loaderData as unknown as { products: any[]; apartments: any[] };
+
+    if (products.length === 0) {
+        return (
+            <PageContainer size="narrow">
+                <Card>
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-2xl font-bold">주문 불가 안내</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-center py-10 space-y-4">
+                        <p className="text-muted-foreground">
+                            현재 주문 가능한 상품이 없습니다.<br />
+                            잠시 후 다시 방문해 주세요.
+                        </p>
+                        <Button asChild variant="outline">
+                            <Link to="/order/lookup">내 주문 조회하기</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </PageContainer>
+        );
+    }
+
     const navigation = useNavigation();
     const submit = useSubmit();
     const isSubmitting = navigation.state === "submitting";
@@ -384,7 +380,6 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 
                             {/* Products */}
                             <div className="space-y-4 border rounded-md p-4">
-                                <p className="text-sm font-medium mb-2">주문 상품 (Menu)</p>
                                 {products.map((product, index) => (
                                     <FormField
                                         key={product.id}
@@ -561,7 +556,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 </div>
                             )}
 
-                            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                            <Button type="submit" className="w-full" disabled={isSubmitting || products.length === 0}>
                                 {isSubmitting ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />

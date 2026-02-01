@@ -1,26 +1,10 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Link, useLoaderData, useActionData, useSubmit, data, redirect } from "react-router";
 import { format, parseISO } from "date-fns";
-import { Eye, Lock, Unlock, XCircle, Plus, Filter, CalendarIcon, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
+import { Plus, Filter, CalendarIcon, Settings } from "lucide-react";
+import type { ExpandedState } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuLabel,
-    DropdownMenuSeparator,
-    DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
     Select,
     SelectContent,
@@ -38,6 +22,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { useTableSettings } from "@/hooks/useTableSettings";
+import { useOrdersTable } from "@/hooks/useOrdersTable";
+import { OrdersDataTable } from "@/components/admin/orders/OrdersDataTable";
+import { ColumnSettingsSheet } from "@/components/admin/orders/ColumnSettingsSheet";
 import type { Route } from "./+types/admin.orders._index";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -59,6 +47,10 @@ export async function loader({ request }: Route.LoaderArgs) {
                     name_ko,
                     name
                 )
+            ),
+            apartments (
+                name,
+                name_ko
             )
         `)
         .order('created_at', { ascending: false });
@@ -136,24 +128,19 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function AdminOrdersPage() {
     const { orders, statusFilter, deliveryDateFilter } = useLoaderData<typeof loader>();
-    const submit = useSubmit();
     const selectedDate = deliveryDateFilter ? parseISO(deliveryDateFilter) : undefined;
-    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [expandedRows, setExpandedRows] = useState<ExpandedState>({});
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
-    const statusOptions = [
-        { value: "received", label: "접수됨" },
-        { value: "ready", label: "생산 완료" },
-        { value: "delivered", label: "배달 완료" },
-        { value: "paid", label: "지불 완료" },
-        { value: "cancelled", label: "취소됨" },
-    ];
-    const statusStyles: Record<string, { label: string; className?: string; variant?: "default" | "secondary" | "outline" }> = {
-        received: { label: "접수됨", className: "bg-yellow-600" },
-        ready: { label: "생산 완료", className: "bg-blue-600" },
-        delivered: { label: "배달 완료", className: "bg-green-600" },
-        paid: { label: "지불 완료", className: "bg-emerald-700" },
-        cancelled: { label: "취소됨", variant: "secondary" },
-    };
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+    const { settings, saveSettings, resetSettings, isLoaded } = useTableSettings();
+    const table = useOrdersTable({
+        orders,
+        settings,
+        onSettingsChange: saveSettings,
+        expandedRows,
+        onExpandedChange: setExpandedRows,
+    });
 
     function handleStatusFilter(value: string) {
         const url = new URL(window.location.href);
@@ -175,55 +162,6 @@ export default function AdminOrdersPage() {
         window.location.href = url.toString();
     }
 
-    function handleAction(intent: string, orderId: string, additionalData?: Record<string, string>) {
-        const formData = new FormData();
-        formData.append("intent", intent);
-        formData.append("orderId", orderId);
-        if (additionalData) {
-            Object.entries(additionalData).forEach(([key, value]) => {
-                formData.append(key, value);
-            });
-        }
-        submit(formData, { method: "post" });
-    }
-
-    function toggleRow(orderId: string) {
-        setExpandedRows((prev) => {
-            const next = new Set(prev);
-            if (next.has(orderId)) {
-                next.delete(orderId);
-            } else {
-                next.add(orderId);
-            }
-            return next;
-        });
-    }
-
-    function getOrderSummary(order: any) {
-        const items = order.order_items || [];
-        if (items.length === 0) return "주문 없음";
-
-        const firstItem = items[0];
-        const firstName = firstItem.products?.name_ko || firstItem.products?.name || "상품";
-
-        if (items.length === 1) {
-            return `${firstName} x ${firstItem.quantity}`;
-        }
-
-        return `${firstName} x ${firstItem.quantity} 외 ${items.length - 1}건`;
-    }
-
-    function getOrderItemLines(order: any) {
-        const items = order.order_items || [];
-        if (items.length === 0) {
-            return ["주문 없음"];
-        }
-
-        return items.map((item: any) => {
-            const name = item.products?.name_ko || item.products?.name || "상품";
-            return `${name} x ${item.quantity}`;
-        });
-    }
 
     return (
         <PageContainer size="wide">
@@ -304,183 +242,40 @@ export default function AdminOrdersPage() {
 
             <Card>
                 <CardHeader>
-                    <CardTitle>전체 주문 ({orders.length}개)</CardTitle>
+                    <div className="flex items-center justify-between">
+                        <CardTitle>전체 주문 ({orders.length}개)</CardTitle>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setIsSettingsOpen(true)}
+                        >
+                            <Settings className="mr-2 h-4 w-4" />
+                            컬럼 설정
+                        </Button>
+                    </div>
                 </CardHeader>
                 <CardContent>
-                    {orders.length === 0 ? (
+                    {!isLoaded ? (
+                        <div className="text-center py-8">
+                            <p className="text-muted-foreground">로딩 중...</p>
+                        </div>
+                    ) : orders.length === 0 ? (
                         <div className="text-center py-8">
                             <p className="text-muted-foreground">주문 내역이 없습니다.</p>
                         </div>
                     ) : (
-                        <div className="rounded-md border">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead className="w-[40px]"></TableHead>
-                                        <TableHead>주문번호</TableHead>
-                                        <TableHead>고객명</TableHead>
-                                        <TableHead className="hidden md:table-cell">전화번호</TableHead>
-                                        <TableHead className="hidden sm:table-cell">주문 내역</TableHead>
-                                        <TableHead>배달일</TableHead>
-                                        <TableHead className="hidden lg:table-cell">채널</TableHead>
-                                        <TableHead className="text-right">총액</TableHead>
-                                        <TableHead>상태</TableHead>
-                                        <TableHead className="text-right">작업</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {orders.map((order: any) => {
-                                        const isExpanded = expandedRows.has(order.id);
-                                        return (
-                                            <React.Fragment key={order.id}>
-                                                <TableRow
-                                                    className="cursor-pointer hover:bg-muted/50"
-                                                    onClick={() => toggleRow(order.id)}
-                                                >
-                                                    <TableCell>
-                                                        {isExpanded ? (
-                                                            <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                                                        ) : (
-                                                            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="font-mono text-sm">
-                                                        {order.order_number}
-                                                    </TableCell>
-                                                    <TableCell className="font-medium">
-                                                        {order.customer_name}
-                                                    </TableCell>
-                                                    <TableCell className="text-muted-foreground hidden md:table-cell">
-                                                        {order.phone}
-                                                    </TableCell>
-                                                    <TableCell className="hidden sm:table-cell">
-                                                        <span className="text-sm font-medium">
-                                                            {getOrderSummary(order)}
-                                                        </span>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {new Date(order.delivery_date).toLocaleDateString('ko-KR')}
-                                                    </TableCell>
-                                                    <TableCell className="hidden lg:table-cell">
-                                                        <Badge variant="outline">
-                                                            {order.entry_channel === 'admin_whatsapp' ? 'WhatsApp' : '직접'}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-medium">
-                                                        ₹{order.total_amount}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        {(() => {
-                                                            const info = statusStyles[order.status] || { label: order.status };
-                                                            if (info.variant) {
-                                                                return <Badge variant={info.variant}>{info.label}</Badge>;
-                                                            }
-                                                            return <Badge variant="default" className={info.className}>{info.label}</Badge>;
-                                                        })()}
-                                                        {order.is_locked && (
-                                                            <Badge variant="outline" className="ml-1">
-                                                                <Lock className="h-3 w-3" />
-                                                            </Badge>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button size="sm" variant="ghost">
-                                                                    작업
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end" className="w-[200px]">
-                                                                <DropdownMenuLabel>주문 작업</DropdownMenuLabel>
-                                                                <DropdownMenuSeparator />
-                                                                <DropdownMenuItem asChild>
-                                                                    <Link to={`/admin/orders/${order.id}`}>
-                                                                        <Eye className="mr-2 h-4 w-4" />
-                                                                        상세 보기
-                                                                    </Link>
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuItem onClick={() => handleAction("toggle_lock", order.id)}>
-                                                                    {order.is_locked ? (
-                                                                        <>
-                                                                            <Unlock className="mr-2 h-4 w-4" />
-                                                                            잠금 해제
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <Lock className="mr-2 h-4 w-4" />
-                                                                            주문 잠금
-                                                                        </>
-                                                                    )}
-                                                                </DropdownMenuItem>
-                                                                <DropdownMenuSeparator />
-                                                                {order.status !== 'cancelled' && (
-                                                                    <>
-                                                                        {statusOptions
-                                                                            .filter((option) => option.value !== 'cancelled')
-                                                                            .filter((option) => option.value !== order.status)
-                                                                            .map((option) => (
-                                                                                <DropdownMenuItem
-                                                                                    key={`status-${order.id}-${option.value}`}
-                                                                                    onClick={() => handleAction("change_status", order.id, { status: option.value })}
-                                                                                >
-                                                                                    {option.label}로 변경
-                                                                                </DropdownMenuItem>
-                                                                            ))}
-                                                                        <DropdownMenuSeparator />
-                                                                    </>
-                                                                )}
-                                                                {order.status !== 'cancelled' && (
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => handleAction("cancel", order.id)}
-                                                                        className="text-red-600"
-                                                                    >
-                                                                        <XCircle className="mr-2 h-4 w-4" />
-                                                                        주문 취소
-                                                                    </DropdownMenuItem>
-                                                                )}
-                                                                {order.status === 'cancelled' && (
-                                                                    <DropdownMenuItem
-                                                                        onClick={() => handleAction("restore", order.id)}
-                                                                    >
-                                                                        <RotateCcw className="mr-2 h-4 w-4" />
-                                                                        주문 복원
-                                                                    </DropdownMenuItem>
-                                                                )}
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </TableCell>
-                                                </TableRow>
-                                                {isExpanded && (
-                                                    <TableRow className="bg-muted/30">
-                                                        <TableCell />
-                                                        <TableCell colSpan={9}>
-                                                            <div className="py-4 px-2">
-                                                                <h4 className="text-sm font-semibold mb-2">상세 주문 내역</h4>
-                                                                <p className="text-sm text-muted-foreground leading-relaxed">
-                                                                    {order.order_items?.map((item: any) => {
-                                                                        const name = item.products?.name_ko || item.products?.name;
-                                                                        return `${name} x ${item.quantity}`;
-                                                                    }).join(", ")}
-                                                                </p>
-                                                                {order.notes && (
-                                                                    <div className="mt-4 p-3 rounded bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-100 dark:border-yellow-900/50">
-                                                                        <p className="text-xs font-semibold text-yellow-800 dark:text-yellow-400 mb-1">고객 메모</p>
-                                                                        <p className="text-sm">{order.notes}</p>
-                                                                    </div>
-                                                                )}
-                                                            </div>
-                                                        </TableCell>
-                                                    </TableRow>
-                                                )}
-                                            </React.Fragment>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                        </div>
+                        <OrdersDataTable table={table} />
                     )}
                 </CardContent>
             </Card>
+
+            <ColumnSettingsSheet
+                open={isSettingsOpen}
+                onOpenChange={setIsSettingsOpen}
+                settings={settings}
+                onSettingsChange={saveSettings}
+                onReset={resetSettings}
+            />
         </PageContainer>
     );
 }
