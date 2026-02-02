@@ -35,6 +35,13 @@ const formatDateTime = (value?: string | null) => {
     return date.toLocaleString();
 };
 
+const formatDate = (value?: string | null) => {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleDateString();
+};
+
 export async function loader({ request }: LoaderFunctionArgs) {
     await requireAuth(request);
 
@@ -47,6 +54,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             status,
             start_at,
             end_at,
+            delivery_date,
             is_all_products,
             created_at,
             notice_products(product_id, products(name, name_ko)),
@@ -142,6 +150,7 @@ export default function AdminNoticesPage() {
                                         <TableHead>상태</TableHead>
                                         <TableHead>제목</TableHead>
                                         <TableHead>기간</TableHead>
+                                        <TableHead>배달일</TableHead>
                                         <TableHead>대상</TableHead>
                                         <TableHead>제한</TableHead>
                                         <TableHead className="text-right">작업</TableHead>
@@ -170,6 +179,9 @@ export default function AdminNoticesPage() {
                                                     <div>{formatDateTime(notice.end_at)}</div>
                                                 </TableCell>
                                                 <TableCell className="text-xs text-muted-foreground">
+                                                    {formatDate(notice.delivery_date)}
+                                                </TableCell>
+                                                <TableCell className="text-xs text-muted-foreground">
                                                     {notice.is_all_products ? (
                                                         <span>전체 상품</span>
                                                     ) : (
@@ -192,22 +204,22 @@ export default function AdminNoticesPage() {
                                                     ))}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="flex justify-end gap-2">
-                                                        <Button asChild size="sm" variant="outline">
+                                                    <div className="grid grid-cols-[32px_72px_64px] items-center justify-end gap-2">
+                                                        <Button asChild size="icon" variant="outline" className="h-8 w-8">
                                                             <Link to={`/admin/notices/${notice.id}`}>
                                                                 <Pencil className="h-3 w-3" />
                                                             </Link>
                                                         </Button>
-                                                        <form method="post">
+                                                        <form method="post" className="w-full">
                                                             <input type="hidden" name="intent" value={notice.status === "active" ? "close" : "activate"} />
                                                             <input type="hidden" name="noticeId" value={notice.id} />
-                                                            <Button size="sm" variant="outline" type="submit">
+                                                            <Button size="sm" variant="outline" type="submit" className="h-8 w-full justify-center">
                                                                 {notice.status === "active" ? "종료" : "활성화"}
                                                             </Button>
                                                         </form>
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
-                                                                <Button size="sm" variant="ghost" type="button">
+                                                                <Button size="sm" variant="ghost" type="button" className="h-8 w-full justify-center">
                                                                     삭제
                                                                 </Button>
                                                             </AlertDialogTrigger>

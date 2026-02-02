@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { format } from "date-fns";
+import { addDays, format } from "date-fns";
 import { Link, useActionData, useLoaderData, data, redirect, type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
 import { ArrowLeft, CalendarIcon, Plus, X } from "lucide-react";
 
@@ -47,6 +47,11 @@ const toDateTimeValue = (date?: Date, time?: string) => {
     return `${datePart}T${time}`;
 };
 
+const toDateValue = (date?: Date) => {
+    if (!date) return "";
+    return format(date, "yyyy-MM-dd");
+};
+
 export async function loader({ request }: LoaderFunctionArgs) {
     await requireAuth(request);
 
@@ -81,6 +86,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const message = formData.get("message");
     const startAtValue = formData.get("start_at");
     const endAtValue = formData.get("end_at");
+    const deliveryDateValue = formData.get("delivery_date");
     const isAllProducts = formData.get("is_all_products") === "on";
     const totalLimitValue = formData.get("total_limit");
     const activateNow = formData.get("activate_now") === "on";
@@ -111,6 +117,14 @@ export async function action({ request }: ActionFunctionArgs) {
         return data({ error: "종료 시간이 시작 시간보다 빠를 수 없습니다" }, { status: 400 });
     }
 
+    const deliveryDateString = typeof deliveryDateValue === "string" && deliveryDateValue.trim()
+        ? deliveryDateValue.trim()
+        : format(addDays(new Date(), 1), "yyyy-MM-dd");
+    const deliveryDate = new Date(`${deliveryDateString}T00:00:00`);
+    if (Number.isNaN(deliveryDate.getTime())) {
+        return data({ error: "배달일이 올바르지 않습니다" }, { status: 400 });
+    }
+
     const totalLimit = toNumber(totalLimitValue);
     if (totalLimitValue && (Number.isNaN(totalLimit) || totalLimit <= 0)) {
         return data({ error: "전체 수량 제한은 1 이상이어야 합니다" }, { status: 400 });
@@ -128,6 +142,7 @@ export async function action({ request }: ActionFunctionArgs) {
             status: activateNow ? "active" : "closed",
             start_at: startAt.toISOString(),
             end_at: endAt ? endAt.toISOString() : null,
+            delivery_date: deliveryDateString,
             is_all_products: isAllProducts,
         })
         .select("id")
@@ -172,8 +187,10 @@ export default function AdminNoticeNewPage() {
     const [startTime, setStartTime] = useState<string>(() => format(new Date(), "HH:mm"));
     const [endDate, setEndDate] = useState<Date | undefined>(() => new Date());
     const [endTime, setEndTime] = useState<string>("20:00");
+    const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(() => addDays(new Date(), 1));
     const [startOpen, setStartOpen] = useState(false);
     const [endOpen, setEndOpen] = useState(false);
+    const [deliveryOpen, setDeliveryOpen] = useState(false);
     const defaultTitle = useMemo(() => `${format(new Date(), "yyyy-MM-dd")} 공지`, []);
     const [activateNow, setActivateNow] = useState(true);
     const [isAllProducts, setIsAllProducts] = useState(false);
@@ -339,6 +356,36 @@ export default function AdminNoticeNewPage() {
                                             onChange={(event) => setEndTime(event.target.value)}
                                         />
                                     </div>
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">배달일</label>
+                                <input type="hidden" name="delivery_date" value={toDateValue(deliveryDate)} />
+                                <Popover open={deliveryOpen} onOpenChange={setDeliveryOpen}>
+                                    <PopoverTrigger asChild>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            className={cn(
+                                                "w-full justify-start text-left font-normal",
+                                                !deliveryDate && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {deliveryDate ? format(deliveryDate, "yyyy-MM-dd") : "날짜 선택"}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-auto p-0" align="start">
+                                        <Calendar
+                                            mode="single"
+                                            selected={deliveryDate}
+                                            onSelect={(date) => {
+                                                setDeliveryDate(date);
+                                                if (date) setDeliveryOpen(false);
+                                            }}
+                                            initialFocus
+                                        />
+                                    </PopoverContent>
+                                </Popover>
                             </div>
                         </div>
 

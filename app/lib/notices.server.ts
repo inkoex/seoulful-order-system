@@ -21,6 +21,7 @@ export type NoticeSnapshot = {
         status: string;
         start_at: string;
         end_at: string | null;
+        delivery_date: string | null;
         is_all_products: boolean;
     };
     targetProductIds: string[];
@@ -48,7 +49,7 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
 
     const { data: activeNotices, error: activeError } = await supabaseAdmin
         .from("notices")
-        .select("id, title, message, status, start_at, end_at, is_all_products, notice_products(product_id), notice_limits(id, type, product_id, max_quantity)")
+        .select("id, title, message, status, start_at, end_at, delivery_date, is_all_products, notice_products(product_id), notice_limits(id, type, product_id, max_quantity)")
         .eq("status", "active")
         .lte("start_at", nowIso)
         .or(`end_at.is.null,end_at.gte.${nowIso}`)
@@ -68,7 +69,7 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
 
         return {
             hasNotices: (count || 0) > 0,
-            orderingOpen: (count || 0) === 0,
+            orderingOpen: true,
             notice: null,
             targetProductIds: [],
             totals: { totalMax: null, totalUsed: 0, totalRemaining: null },
@@ -85,6 +86,7 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
         status: activeNotice.status,
         start_at: activeNotice.start_at,
         end_at: activeNotice.end_at,
+        delivery_date: activeNotice.delivery_date ?? null,
         is_all_products: activeNotice.is_all_products,
     };
 

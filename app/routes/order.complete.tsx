@@ -66,16 +66,19 @@ export default function OrderCompletePage() {
     const whatsappUrl = orderData ? (() => {
         const editUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/order/edit/${orderData.id}?token=${orderData.edit_token}`;
         const message = encodeURIComponent(
-            `안녕하세요! Seoulful 주문이 완료되었습니다.\n\n` +
-            `📦 주문번호: ${orderData.order_number}\n` +
-            `👤 고객명: ${orderData.customer_name}\n` +
-            `📅 배달일: ${new Date(orderData.delivery_date).toLocaleDateString('ko-KR')}\n` +
-            `💰 총 금액: ₹${orderData.total_amount}\n\n` +
-            `✏️ 주문 수정: ${editUrl}\n\n` +
-            `⏰ 마감: 배달 전날 오후 8시까지`
+            `Hello! Your Seoulful order is confirmed.\n\n` +
+            `📦 Order No.: ${orderData.order_number}\n` +
+            `👤 Name: ${orderData.customer_name}\n` +
+            `📅 Delivery date: ${new Date(orderData.delivery_date).toLocaleDateString('ko-KR')}\n` +
+            `💰 Total: ₹${orderData.total_amount}\n\n` +
+            `✏️ Edit order: ${editUrl}\n\n` +
+            `⏰ Deadline: 8 PM the day before delivery`
         );
         return `https://wa.me/?text=${message}`;
     })() : '';
+
+    const itemsSubtotal = orderItems.reduce((total, item) => total + (Number(item.subtotal) || 0), 0);
+    const deliveryFee = orderData ? Math.max(0, Number(orderData.total_amount) - itemsSubtotal) : 0;
 
     return (
         <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
@@ -84,28 +87,28 @@ export default function OrderCompletePage() {
                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
                         <CheckCircle2 className="h-10 w-10 text-green-600 dark:text-green-400" />
                     </div>
-                    <CardTitle className="text-2xl">주문이 완료되었습니다!</CardTitle>
+                    <CardTitle className="text-2xl">Order completed!</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <p className="text-muted-foreground mb-4">
-                        주문해주셔서 감사합니다.
+                        Thanks for your order.
                     </p>
                     {orderData && (
                         <div className="space-y-3">
                             <div className="p-4 border rounded-md">
-                                <p className="text-sm text-muted-foreground font-medium">주문 번호</p>
+                                <p className="text-sm text-muted-foreground font-medium">Order No.</p>
                                 <p className="text-2xl font-bold">{orderData.order_number}</p>
                             </div>
 
                             {/* Order Items List */}
                             {orderItems.length > 0 && (
                                 <div className="p-3 border rounded-md">
-                                    <p className="text-sm font-medium mb-2">주문 내역</p>
+                                    <p className="text-sm font-medium mb-2">Order summary</p>
                                     <div className="space-y-2">
                                         {orderItems.map((item: any, index: number) => (
                                             <div key={index} className="flex justify-between text-sm">
                                                 <span className="text-muted-foreground">
-                                                    {item.products?.name_ko || item.products?.name} × {item.quantity}
+                                                    {item.products?.name || item.products?.name_ko} × {item.quantity}
                                                 </span>
                                                 <span className="font-medium">₹{item.subtotal}</span>
                                             </div>
@@ -116,34 +119,34 @@ export default function OrderCompletePage() {
 
                             <div className="p-3 border rounded-md text-sm">
                                 <div className="flex justify-between py-1">
-                                    <span className="text-muted-foreground">고객명</span>
-                                    <span className="font-medium">{orderData.customer_name}</span>
-                                </div>
-                                <div className="flex justify-between py-1">
-                                    <span className="text-muted-foreground">배달일</span>
+                                    <span className="text-muted-foreground">Delivery date</span>
                                     <span className="font-medium">{new Date(orderData.delivery_date).toLocaleDateString('ko-KR')}</span>
                                 </div>
+                                <div className="flex justify-between py-1">
+                                    <span className="text-muted-foreground">Delivery fee</span>
+                                    <span className="font-medium">{deliveryFee > 0 ? `₹${deliveryFee}` : "Free"}</span>
+                                </div>
                                 <div className="flex justify-between py-1 border-t mt-2 pt-2">
-                                    <span className="text-muted-foreground">총 금액</span>
+                                    <span className="text-muted-foreground">Total</span>
                                     <span className="font-bold text-lg">₹{orderData.total_amount}</span>
                                 </div>
                             </div>
                         </div>
                     )}
                     <div className="mt-6 text-sm text-muted-foreground">
-                        <p>확인 메시지를 곧 보내드리겠습니다.</p>
-                        <p className="mt-1">문의: WhatsApp</p>
+                        <p>We will send a confirmation message soon.</p>
+                        <p className="mt-1">Contact: WhatsApp</p>
                     </div>
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row gap-3 justify-center">
                     <Button asChild variant="outline">
-                        <Link to="/">추가 주문하기</Link>
+                        <Link to="/">Place another order</Link>
                     </Button>
                     {orderData && (
                         <Button asChild variant="default">
                             <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
                                 <MessageCircle className="mr-2 h-4 w-4" />
-                                WhatsApp으로 공유
+                                Share on WhatsApp
                             </a>
                         </Button>
                     )}

@@ -153,8 +153,15 @@ export async function action({ request }: Route.ActionArgs) {
     const { items, ...orderInfo } = result.data;
 
     const noticeSnapshot = await getNoticeSnapshot();
-    if (noticeSnapshot.hasNotices && !noticeSnapshot.orderingOpen) {
+    if (noticeSnapshot.notice && !noticeSnapshot.orderingOpen) {
         return data({ error: "Ordering is closed (현재 주문이 마감되었습니다)" }, { status: 400 });
+    }
+
+    if (noticeSnapshot.notice?.delivery_date) {
+        const requestedDate = format(orderInfo.delivery_date, "yyyy-MM-dd");
+        if (requestedDate !== noticeSnapshot.notice.delivery_date) {
+            return data({ error: "Delivery date is fixed by notice. (공지 배달일로 고정됩니다)" }, { status: 400 });
+        }
     }
 
     // Filter active items (quantity > 0)
@@ -248,7 +255,10 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
         apartments: any[];
         notice: NoticeSnapshot;
     };
-    const orderingClosed = notice?.hasNotices && !notice?.orderingOpen;
+    const orderingClosed = Boolean(notice?.notice) && !notice?.orderingOpen;
+    const noticeDeliveryDate = notice?.notice?.delivery_date;
+    const fixedDeliveryDate = noticeDeliveryDate ? new Date(`${noticeDeliveryDate}T00:00:00`) : undefined;
+    const isDeliveryLocked = Boolean(noticeDeliveryDate);
     const soldOutIds = useMemo(() => new Set(notice?.soldOutProductIds || []), [notice?.soldOutProductIds]);
 
     if (products.length === 0) {
@@ -294,6 +304,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
             customer_name: "",
             phone: "",
             items: products.map(p => ({ productId: p.id, quantity: 0 })),
+            delivery_date: fixedDeliveryDate,
             payment_method: "upi",
             notes: "",
             entry_channel: "customer_direct",
@@ -370,16 +381,16 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                             className="h-auto w-full max-w-[280px]"
                         />
                     </div>
-                    <CardTitle className="text-2xl font-bold text-center">Order Form (주문서)</CardTitle>
-                    <CardDescription className="text-center">
-                        Crafted with care. (정성을 담아 만듭니다)
-                    </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {notice?.notice && (
+                    {notice?.notice?.delivery_date && (
                         <div className="mb-6 rounded-md border bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                            <p className="font-semibold">{notice.notice.title}</p>
-                            <p className="mt-1 whitespace-pre-line">{notice.notice.message}</p>
+                            <div className="flex flex-wrap items-baseline gap-x-2">
+                                <span className="text-sm font-semibold uppercase tracking-wide text-amber-700">Delivery Date (배송일):</span>
+                                <span className="text-sm font-semibold">
+                                    {format(new Date(`${notice.notice.delivery_date}T00:00:00`), "yyyy-MM-dd (EEE)")}
+                                </span>
+                            </div>
                             <div className="mt-2 flex flex-wrap gap-3 text-xs text-amber-800">
                                 {notice.totals.totalRemaining !== null && (
                                     <span>
@@ -387,7 +398,9 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                     </span>
                                 )}
                                 {notice.notice.end_at && (
-                                    <span>Closes at {new Date(notice.notice.end_at).toLocaleString()}</span>
+                                    <span>
+                                        Closes at {new Date(notice.notice.end_at).toLocaleString("ko-KR", { hour12: false })}
+                                    </span>
                                 )}
                             </div>
                         </div>
@@ -474,7 +487,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 name="phone"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>Phone (연락처)</FormLabel>
+                                        <FormLabel>WhatsApp No. (왓츠앱 번호)</FormLabel>
                                         <FormControl>
                                             <Input placeholder="1234567890" type="tel" maxLength={10} {...field} />
                                         </FormControl>
@@ -557,50 +570,66 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                             </div>
 
                             {/* Delivery Date */}
-                            <FormField
-                                control={formControl}
-                                name="delivery_date"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel>Delivery date (배달 희망일)</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button
-                                                        variant={"outline"}
-                                                        className={cn(
-                                                            "w-full justify-start text-left font-normal",
-                                                            !field.value && "text-muted-foreground"
-                                                        )}
-                                                    >
-                                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                                        {field.value ? (
-                                                            format(field.value, "PPP")
-                                                        ) : (
-                                                            <span>Pick a date (날짜 선택)</span>
-                                                        )}
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={field.value}
-                                                    onSelect={field.onChange}
-                                                    disabled={(date) =>
-                                                        date < new Date() || date > addDays(new Date(), 3)
-                                                    }
-                                                    initialFocus
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormDescription>
-                                            Choose within 3 days. Orders close 8 PM the day before. (오늘부터 3일 이내 선택 가능)
-                                        </FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            {isDeliveryLocked ? (
+                                <FormField
+                                    control={formControl}
+                                    name="delivery_date"
+                                    render={({ field }) => (
+                                        <input
+                                            type="hidden"
+                                            name={field.name}
+                                            ref={field.ref}
+                                            value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
+                                            onChange={() => null}
+                                        />
+                                    )}
+                                />
+                            ) : (
+                                <FormField
+                                    control={formControl}
+                                    name="delivery_date"
+                                    render={({ field }) => (
+                                        <FormItem className="flex flex-col">
+                                            <FormLabel>Delivery date (배달 희망일)</FormLabel>
+                                            <Popover>
+                                                <PopoverTrigger asChild>
+                                                    <FormControl>
+                                                        <Button
+                                                            variant={"outline"}
+                                                            className={cn(
+                                                                "w-full justify-start text-left font-normal",
+                                                                !field.value && "text-muted-foreground"
+                                                            )}
+                                                        >
+                                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                                            {field.value ? (
+                                                                format(field.value, "PPP")
+                                                            ) : (
+                                                                <span>Pick a date (날짜 선택)</span>
+                                                            )}
+                                                        </Button>
+                                                    </FormControl>
+                                                </PopoverTrigger>
+                                                <PopoverContent className="w-auto p-0" align="start">
+                                                    <Calendar
+                                                        mode="single"
+                                                        selected={field.value}
+                                                        onSelect={field.onChange}
+                                                        disabled={(date) =>
+                                                            date < new Date() || date > addDays(new Date(), 3)
+                                                        }
+                                                        initialFocus
+                                                    />
+                                                </PopoverContent>
+                                            </Popover>
+                                            <FormDescription>
+                                                Choose within 3 days. Orders close 8 PM the day before. (오늘부터 3일 이내 선택 가능)
+                                            </FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )}
 
                             {/* Payment */}
                             <FormField
