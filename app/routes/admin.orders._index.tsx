@@ -26,6 +26,7 @@ import { useTableSettings } from "@/hooks/useTableSettings";
 import { useOrdersTable } from "@/hooks/useOrdersTable";
 import { OrdersDataTable } from "@/components/admin/orders/OrdersDataTable";
 import { ColumnSettingsSheet } from "@/components/admin/orders/ColumnSettingsSheet";
+import { cn } from "@/lib/utils";
 import type { Route } from "./+types/admin.orders._index";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -170,17 +171,12 @@ export default function AdminOrdersPage() {
                     <h1 className="text-3xl font-bold">주문 관리</h1>
                     <p className="text-muted-foreground mt-1">모든 주문 내역</p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <Button asChild variant="outline" className="w-full sm:w-auto">
-                        <Link to="/admin/dashboard">대시보드로</Link>
-                    </Button>
-                    <Button asChild className="w-full sm:w-auto">
-                        <Link to="/admin/orders/new">
-                            <Plus className="mr-2 h-4 w-4" />
-                            WhatsApp 주문 입력
-                        </Link>
-                    </Button>
-                </div>
+                <Button asChild className="w-full sm:w-auto">
+                    <Link to="/admin/orders/new">
+                        <Plus className="mr-2 h-4 w-4" />
+                        WhatsApp 주문 입력
+                    </Link>
+                </Button>
             </div>
 
             <Card className="mb-6">
@@ -207,7 +203,13 @@ export default function AdminOrdersPage() {
                             <div className="flex flex-1 items-center gap-2">
                                 <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                                     <PopoverTrigger asChild>
-                                        <Button variant="outline" className="flex-1 sm:w-[200px] justify-start text-left font-normal">
+                                        <Button
+                                            variant="outline"
+                                            className={cn(
+                                                "flex-1 sm:w-[200px] justify-start text-left font-normal",
+                                                !selectedDate && "text-muted-foreground"
+                                            )}
+                                        >
                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                             {selectedDate ? format(selectedDate, "yyyy-MM-dd") : "배달일 선택"}
                                         </Button>

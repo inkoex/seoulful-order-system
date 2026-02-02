@@ -377,16 +377,16 @@ export default function AdminOrderNewPage() {
                                                     <Button
                                                         variant={"outline"}
                                                         className={cn(
-                                                            "w-full pl-3 text-left font-normal",
+                                                            "w-full justify-start text-left font-normal",
                                                             !field.value && "text-muted-foreground"
                                                         )}
                                                     >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
                                                         {field.value ? (
                                                             format(field.value, "PPP")
                                                         ) : (
                                                             <span>날짜 선택 (Pick a date)</span>
                                                         )}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                     </Button>
                                                 </FormControl>
                                             </PopoverTrigger>

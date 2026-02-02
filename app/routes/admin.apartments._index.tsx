@@ -133,17 +133,12 @@ export default function AdminApartmentsPage() {
                     <h1 className="text-3xl font-bold">아파트 관리</h1>
                     <p className="text-muted-foreground mt-1">배달 지역 관리</p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <Button asChild variant="outline" className="w-full sm:w-auto">
-                        <Link to="/admin/dashboard">대시보드로</Link>
-                    </Button>
-                    <Button asChild className="w-full sm:w-auto">
-                        <Link to="/admin/apartments/new">
-                            <Plus className="mr-2 h-4 w-4" />
-                            아파트 추가
-                        </Link>
-                    </Button>
-                </div>
+                <Button asChild className="w-full sm:w-auto">
+                    <Link to="/admin/apartments/new">
+                        <Plus className="mr-2 h-4 w-4" />
+                        아파트 추가
+                    </Link>
+                </Button>
             </div>
 
             <Card>

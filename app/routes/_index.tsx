@@ -4,7 +4,7 @@ import { z } from "zod";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addDays } from "date-fns";
-import { CalendarIcon, Loader2, Plus, Minus } from "lucide-react";
+import { CalendarIcon, Loader2, Plus, Minus, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -33,8 +33,9 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
+import { getNoticeSnapshot, type NoticeSnapshot } from "@/lib/notices.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/_index";
 
@@ -42,16 +43,16 @@ import type { Route } from "./+types/_index";
 const phoneRegex = /^\d{10}$/;
 
 const orderSchema = z.object({
-    apartment: z.string().min(1, "아파트를 선택해주세요"),
-    tower: z.string().min(1, "동/타워를 입력해주세요"),
-    flat_number: z.string().min(1, "호수를 입력해주세요"),
-    customer_name: z.string().min(1, "이름을 입력해주세요"),
-    phone: z.string().regex(phoneRegex, "10자리 숫자로 입력해주세요"),
+    apartment: z.string().min(1, "Please select an apartment (아파트를 선택해주세요)"),
+    tower: z.string().min(1, "Please enter your tower (동을 입력해주세요)"),
+    flat_number: z.string().min(1, "Please enter your flat number (호수를 입력해주세요)"),
+    customer_name: z.string().min(1, "Please enter your name (이름을 입력해주세요)"),
+    phone: z.string().regex(phoneRegex, "Please enter a 10-digit number (10자리 숫자로 입력해주세요)"),
     items: z.array(z.object({
         productId: z.string(),
         quantity: z.number().min(0),
     })).refine((items) => items.some(item => item.quantity > 0), {
-        message: "최소 1개 이상의 상품을 선택해주세요",
+        message: "Please select at least 1 item (최소 1개 이상의 상품을 선택해주세요)",
         path: ["root"], // attach error to root
     }),
     delivery_date: z.date(),
@@ -106,7 +107,15 @@ export async function loader() {
         return (a.sort_order || 0) - (b.sort_order || 0);
     });
 
-    return { products: sortedProducts, apartments: apartments || [] };
+    const noticeSnapshot = await getNoticeSnapshot();
+    let visibleProducts = sortedProducts;
+
+    if (noticeSnapshot.notice && !noticeSnapshot.notice.is_all_products) {
+        const allowedIds = new Set(noticeSnapshot.targetProductIds);
+        visibleProducts = sortedProducts.filter((product: any) => allowedIds.has(product.id));
+    }
+
+    return { products: visibleProducts, apartments: apartments || [], notice: noticeSnapshot };
 }
 
 // --- Action ---
@@ -126,7 +135,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     const payloadString = formData.get("payload");
     if (!payloadString || typeof payloadString !== "string") {
-        return data({ error: "Invalid submission format" }, { status: 400 });
+        return data({ error: "Invalid submission format (제출 형식이 올바르지 않습니다)" }, { status: 400 });
     }
 
     const payload = JSON.parse(payloadString);
@@ -138,10 +147,15 @@ export async function action({ request }: Route.ActionArgs) {
     const result = orderSchema.safeParse(payload);
 
     if (!result.success) {
-        return data({ error: "Validation failed", details: result.error.flatten() }, { status: 400 });
+        return data({ error: "Validation failed (검증에 실패했습니다)", details: result.error.flatten() }, { status: 400 });
     }
 
     const { items, ...orderInfo } = result.data;
+
+    const noticeSnapshot = await getNoticeSnapshot();
+    if (noticeSnapshot.hasNotices && !noticeSnapshot.orderingOpen) {
+        return data({ error: "Ordering is closed (현재 주문이 마감되었습니다)" }, { status: 400 });
+    }
 
     // Filter active items (quantity > 0)
     const activeItems = items
@@ -152,7 +166,37 @@ export async function action({ request }: Route.ActionArgs) {
         }));
 
     if (activeItems.length === 0) {
-        return data({ error: "최소 1개 이상의 상품을 선택해주세요" }, { status: 400 });
+        return data({ error: "Please select at least 1 item (최소 1개 이상의 상품을 선택해주세요)" }, { status: 400 });
+    }
+
+    if (noticeSnapshot.notice) {
+        const targetIds = new Set(noticeSnapshot.targetProductIds);
+        const orderQuantityByProduct: Record<string, number> = {};
+        let totalIncoming = 0;
+
+        activeItems.forEach((item) => {
+            if (noticeSnapshot.notice?.is_all_products || targetIds.has(item.product_id)) {
+                totalIncoming += item.quantity;
+                orderQuantityByProduct[item.product_id] = (orderQuantityByProduct[item.product_id] || 0) + item.quantity;
+            }
+        });
+
+        if (noticeSnapshot.totals.totalMax !== null) {
+            const nextTotal = noticeSnapshot.totals.totalUsed + totalIncoming;
+            if (nextTotal > noticeSnapshot.totals.totalMax) {
+                return data({ error: "Order limit reached. Please reduce quantity. (주문 가능 수량을 초과했습니다)" }, { status: 400 });
+            }
+        }
+
+        const soldOut = Object.entries(orderQuantityByProduct).filter(([productId, quantity]) => {
+            const remaining = noticeSnapshot.productRemainingById[productId];
+            if (remaining === undefined) return false;
+            return quantity > remaining;
+        });
+
+        if (soldOut.length > 0) {
+            return data({ error: "Some items are sold out. Please adjust your order. (품절된 상품이 포함되어 있습니다)" }, { status: 400 });
+        }
     }
 
     // Call database function to create order with items transactionally
@@ -178,13 +222,13 @@ export async function action({ request }: Route.ActionArgs) {
     if (orderError) {
         console.error("Order Creation Error:", orderError);
         return data({
-            error: "주문 저장에 실패했습니다.",
+            error: "Failed to save order (주문 저장에 실패했습니다)",
             details: orderError.message
         }, { status: 500 });
     }
 
     if (!orderResult) {
-        return data({ error: "주문 생성 실패" }, { status: 500 });
+        return data({ error: "Order creation failed (주문 생성 실패)" }, { status: 500 });
     }
 
     // orderResult contains: { id, order_number, edit_token, total_amount }
@@ -199,24 +243,36 @@ type ActionResponse =
     | undefined;
 // --- Component ---
 export default function OrderPage({ loaderData }: Route.ComponentProps) {
-    const { products, apartments } = loaderData as unknown as { products: any[]; apartments: any[] };
+    const { products, apartments, notice } = loaderData as unknown as {
+        products: any[];
+        apartments: any[];
+        notice: NoticeSnapshot;
+    };
+    const orderingClosed = notice?.hasNotices && !notice?.orderingOpen;
+    const soldOutIds = useMemo(() => new Set(notice?.soldOutProductIds || []), [notice?.soldOutProductIds]);
 
     if (products.length === 0) {
         return (
-            <PageContainer size="narrow">
-                <Card>
-                    <CardHeader className="text-center">
-                        <CardTitle className="text-2xl font-bold">주문 불가 안내</CardTitle>
+            <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
+                <Card className="text-center">
+                    <CardHeader>
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                            <XCircle className="h-10 w-10 text-red-600" />
+                        </div>
+                        <CardTitle className="text-2xl">Orders Unavailable (주문 불가)</CardTitle>
                     </CardHeader>
-                    <CardContent className="text-center py-10 space-y-4">
-                        <p className="text-muted-foreground">
-                            현재 주문 가능한 상품이 없습니다.<br />
-                            잠시 후 다시 방문해 주세요.
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">
+                            There are no items available right now.
+                            <br />
+                            Please check back later. (현재 주문 가능한 상품이 없습니다)
                         </p>
-                        <Button asChild variant="outline">
-                            <Link to="/order/lookup">내 주문 조회하기</Link>
-                        </Button>
                     </CardContent>
+                    <CardFooter className="flex justify-center">
+                        <Button asChild variant="outline">
+                            <Link to="/order/lookup">View my order (내 주문 조회)</Link>
+                        </Button>
+                    </CardFooter>
                 </Card>
             </PageContainer>
         );
@@ -276,16 +332,66 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
         submit(formData, { method: "post" });
     }
 
+    if (orderingClosed) {
+        return (
+            <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
+                <Card className="text-center">
+                    <CardHeader>
+                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
+                            <XCircle className="h-10 w-10 text-red-600" />
+                        </div>
+                        <CardTitle className="text-2xl">Orders Unavailable (주문 불가)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">
+                            There are no items available right now.
+                            <br />
+                            Please check back later. (현재 주문 가능한 상품이 없습니다)
+                        </p>
+                    </CardContent>
+                    <CardFooter className="flex justify-center">
+                        <Button asChild variant="outline">
+                            <Link to="/order/lookup">View my order (내 주문 조회)</Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
+            </PageContainer>
+        );
+    }
+
     return (
         <PageContainer size="narrow">
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-2xl font-bold text-center">Seoulful 주문서</CardTitle>
+                    <div className="flex justify-center">
+                        <img
+                            src="/images/seoulful-logo.png"
+                            alt="Seoulful Korean Bakery by Yujin"
+                            className="h-auto w-full max-w-[280px]"
+                        />
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-center">Order Form (주문서)</CardTitle>
                     <CardDescription className="text-center">
-                        정성을 담아 만듭니다. 아래 정보를 입력해주세요.
+                        Crafted with care. (정성을 담아 만듭니다)
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {notice?.notice && (
+                        <div className="mb-6 rounded-md border bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                            <p className="font-semibold">{notice.notice.title}</p>
+                            <p className="mt-1 whitespace-pre-line">{notice.notice.message}</p>
+                            <div className="mt-2 flex flex-wrap gap-3 text-xs text-amber-800">
+                                {notice.totals.totalRemaining !== null && (
+                                    <span>
+                                        Remaining: {notice.totals.totalRemaining} / {notice.totals.totalMax}
+                                    </span>
+                                )}
+                                {notice.notice.end_at && (
+                                    <span>Closes at {new Date(notice.notice.end_at).toLocaleString()}</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
                     <UiForm {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
@@ -295,17 +401,17 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 name="apartment"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>아파트 (Apartment)</FormLabel>
+                                        <FormLabel>Apartment (아파트)</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
                                             <FormControl>
                                                 <SelectTrigger>
-                                                    <SelectValue placeholder="아파트 선택" />
+                                                    <SelectValue placeholder="Select an apartment (아파트 선택)" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
                                                 {apartments.map((apartment) => (
                                                     <SelectItem key={apartment.id} value={apartment.id}>
-                                                        {apartment.name_ko} ({apartment.name})
+                                                        {apartment.name} ({apartment.name_ko})
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -322,14 +428,14 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                     name="tower"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>동/타워 (Tower)</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="예: A" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
+                                        <FormLabel>Tower (동)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., A (예: A)" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
 
                                 {/* Flat */}
                                 <FormField
@@ -337,15 +443,15 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                     name="flat_number"
                                     render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>호수 (Flat No.)</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="예: 101" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            </div>
+                                        <FormLabel>Flat No. (호)</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="e.g., 101 (예: 101)" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
                             {/* Name */}
                             <FormField
@@ -353,9 +459,9 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 name="customer_name"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>성함 (Name)</FormLabel>
+                                        <FormLabel>Name (성함)</FormLabel>
                                         <FormControl>
-                                            <Input placeholder="홍길동" {...field} />
+                                            <Input placeholder="Your name (이름)" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -368,11 +474,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 name="phone"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>연락처 (Phone)</FormLabel>
+                                        <FormLabel>Phone (연락처)</FormLabel>
                                         <FormControl>
                                             <Input placeholder="1234567890" type="tel" maxLength={10} {...field} />
                                         </FormControl>
-                                        <FormDescription>숫자 10자리만 입력해주세요</FormDescription>
+                                        <FormDescription>Enter 10 digits only (숫자 10자리만 입력해주세요)</FormDescription>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -388,8 +494,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                         render={({ field }) => (
                                             <div className="flex items-center justify-between">
                                                 <div className="text-sm">
-                                                    <p className="font-medium">{product.name_ko}</p>
-                                                    <p className="text-xs text-muted-foreground">{product.name} - ₹{product.price}</p>
+                                                    <p className="font-medium">{product.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{product.name_ko} - ₹{product.price}</p>
+                                                    {soldOutIds.has(product.id) && (
+                                                        <p className="text-xs font-semibold text-red-600">Sold out (품절)</p>
+                                                    )}
                                                     {/* Hidden input for productId */}
                                                     <input type="hidden" {...form.register(`items.${index}.productId`)} value={product.id} />
                                                 </div>
@@ -403,6 +512,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                             const val = Number(field.value);
                                                             if (val > 0) field.onChange(val - 1);
                                                         }}
+                                                        disabled={orderingClosed}
                                                     >
                                                         <Minus className="h-4 w-4" />
                                                     </Button>
@@ -416,6 +526,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                             const val = Number(field.value);
                                                             field.onChange(val + 1);
                                                         }}
+                                                        disabled={orderingClosed || soldOutIds.has(product.id)}
                                                     >
                                                         <Plus className="h-4 w-4" />
                                                     </Button>
@@ -429,17 +540,17 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 )}
                                 <div className="border-t pt-3 space-y-2 text-sm">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">선택 합계</span>
+                                        <span className="text-muted-foreground">Subtotal (선택 합계)</span>
                                         <span className="font-semibold">₹{totalAmount}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">배달비 (₹500 이상 무료)</span>
+                                        <span className="text-muted-foreground">Delivery fee (₹500+ free) (배달비)</span>
                                         <span className={deliveryFee ? "font-semibold" : "text-muted-foreground"}>
-                                            {deliveryFee ? `₹${deliveryFee}` : "무료"}
+                                            {deliveryFee ? `₹${deliveryFee}` : "Free (무료)"}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between font-semibold">
-                                        <span>예상 합계</span>
+                                        <span>Estimated total (예상 합계)</span>
                                         <span>₹{grandTotal}</span>
                                     </div>
                                 </div>
@@ -451,23 +562,23 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 name="delivery_date"
                                 render={({ field }) => (
                                     <FormItem className="flex flex-col">
-                                        <FormLabel>배달 희망일 (Date)</FormLabel>
+                                        <FormLabel>Delivery date (배달 희망일)</FormLabel>
                                         <Popover>
                                             <PopoverTrigger asChild>
                                                 <FormControl>
                                                     <Button
                                                         variant={"outline"}
                                                         className={cn(
-                                                            "w-full pl-3 text-left font-normal",
+                                                            "w-full justify-start text-left font-normal",
                                                             !field.value && "text-muted-foreground"
                                                         )}
                                                     >
+                                                        <CalendarIcon className="mr-2 h-4 w-4" />
                                                         {field.value ? (
                                                             format(field.value, "PPP")
                                                         ) : (
-                                                            <span>날짜 선택 (Pick a date)</span>
+                                                            <span>Pick a date (날짜 선택)</span>
                                                         )}
-                                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                                                     </Button>
                                                 </FormControl>
                                             </PopoverTrigger>
@@ -484,7 +595,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                             </PopoverContent>
                                         </Popover>
                                         <FormDescription>
-                                            오늘부터 3일 이내 선택 가능. 전날 오후 8시 마감.
+                                            Choose within 3 days. Orders close 8 PM the day before. (오늘부터 3일 이내 선택 가능)
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
@@ -497,7 +608,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 name="payment_method"
                                 render={({ field }) => (
                                     <FormItem className="space-y-4">
-                                        <FormLabel>결제 방식 (Payment)</FormLabel>
+                                        <FormLabel>Payment (결제 방식)</FormLabel>
                                         <FormControl>
                                             <RadioGroup
                                                 onValueChange={field.onChange}
@@ -514,13 +625,13 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                     <FormControl>
                                                         <RadioGroupItem value="cash" />
                                                     </FormControl>
-                                                    <FormLabel className="font-normal">현금 (Cash)</FormLabel>
+                                                    <FormLabel className="font-normal">Cash (현금)</FormLabel>
                                                 </FormItem>
                                                 <FormItem className="flex items-center space-x-3 space-y-0">
                                                     <FormControl>
                                                         <RadioGroupItem value="other" />
                                                     </FormControl>
-                                                    <FormLabel className="font-normal">기타 (Other)</FormLabel>
+                                                    <FormLabel className="font-normal">Other (기타)</FormLabel>
                                                 </FormItem>
                                             </RadioGroup>
                                         </FormControl>
@@ -535,10 +646,10 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 name="notes"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>특이사항 (Notes)</FormLabel>
+                                        <FormLabel>Notes (특이사항)</FormLabel>
                                         <FormControl>
                                             <Textarea
-                                                placeholder="예: 경비실에 맡겨주세요"
+                                                placeholder="e.g., Please leave it with security (예: 경비실에 맡겨주세요)"
                                                 className="resize-none"
                                                 {...field}
                                             />
@@ -556,14 +667,14 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 </div>
                             )}
 
-                            <Button type="submit" className="w-full" disabled={isSubmitting || products.length === 0}>
+                            <Button type="submit" className="w-full" disabled={isSubmitting || products.length === 0 || orderingClosed}>
                                 {isSubmitting ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        주문 접수 중...
+                                        Placing order... (주문 접수 중...)
                                     </>
                                 ) : (
-                                    "주문하기 (Order)"
+                                    "Place order (주문하기)"
                                 )}
                             </Button>
                         </form>

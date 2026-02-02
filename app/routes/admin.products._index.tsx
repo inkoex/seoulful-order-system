@@ -88,9 +88,6 @@ export default function AdminProductsPage() {
                 </div>
                 <div className="flex gap-3">
                     <Button asChild variant="outline">
-                        <Link to="/admin/dashboard">대시보드로</Link>
-                    </Button>
-                    <Button asChild variant="outline">
                         <Link to="/admin/categories">카테고리 관리</Link>
                     </Button>
                     <Button asChild>

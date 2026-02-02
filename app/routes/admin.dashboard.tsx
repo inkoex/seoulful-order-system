@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLoaderData, useSearchParams } from "react-router";
-import { LogOut, Package, ShoppingCart, Users, TrendingUp, FolderOpen, Building, Calendar as CalendarIcon } from "lucide-react";
+import { Package, ShoppingCart, Users, TrendingUp, FolderOpen, Building, Calendar as CalendarIcon, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth.server";
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { PageContainer } from "@/components/ui/container";
+import { cn } from "@/lib/utils";
 import type { Route } from "./+types/admin.dashboard";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -185,17 +186,9 @@ export default function AdminDashboardPage() {
 
     return (
         <PageContainer size="wide">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
-                <div>
-                    <h1 className="text-3xl font-bold">관리자 대시보드</h1>
-                    <p className="text-muted-foreground mt-1">Seoulful Order System</p>
-                </div>
-                <Button asChild variant="outline" className="w-full md:w-auto">
-                    <Link to="/admin/logout">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        로그아웃
-                    </Link>
-                </Button>
+            <div className="mb-8">
+                <h3 className="text-2xl font-bold">대시보드 요약</h3>
+                <p className="text-muted-foreground mt-1">실시간 운영 현황</p>
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -252,7 +245,7 @@ export default function AdminDashboardPage() {
                             <span className="text-sm text-muted-foreground whitespace-nowrap">배달일</span>
                             <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
                                 <PopoverTrigger asChild>
-                                    <Button variant="outline" size="sm" className="w-full sm:w-[150px] justify-start text-left font-normal">
+                                    <Button variant="outline" size="sm" className={cn("w-full sm:w-[150px] justify-start text-left font-normal", !summaryDate && "text-muted-foreground")}>
                                         <CalendarIcon className="mr-2 h-4 w-4" />
                                         {summaryDate ? format(summaryDate, "yyyy-MM-dd") : "전체"}
                                     </Button>
@@ -351,6 +344,13 @@ export default function AdminDashboardPage() {
                                 <ShoppingCart className="mr-2 h-4 w-4 text-orange-500" />
                                 <span>주문 내역</span>
                                 <span className="ml-auto text-xs text-muted-foreground">전체 주문 조회</span>
+                            </Link>
+                        </Button>
+                        <Button asChild className="w-full justify-start" variant="outline">
+                            <Link to="/admin/notices">
+                                <Megaphone className="mr-2 h-4 w-4 text-amber-500" />
+                                <span>공지 관리</span>
+                                <span className="ml-auto text-xs text-muted-foreground">주문 공지 설정</span>
                             </Link>
                         </Button>
                     </CardContent>
