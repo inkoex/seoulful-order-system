@@ -569,9 +569,9 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                         <span className="font-semibold">₹{totalAmount}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Delivery fee (₹500+ free) (배달비)</span>
+                                        <span className="text-muted-foreground">Delivery fee (₹500+ free)</span>
                                         <span className={deliveryFee ? "font-semibold" : "text-muted-foreground"}>
-                                            {deliveryFee ? `₹${deliveryFee}` : "Free (무료)"}
+                                            {deliveryFee ? `₹${deliveryFee}` : "Free"}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between font-semibold">
