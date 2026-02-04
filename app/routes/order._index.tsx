@@ -397,7 +397,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 )}
                                 {notice.notice.end_at && (
                                     <span>
-                                        Closes at {new Date(notice.notice.end_at).toLocaleString("ko-KR", { hour12: false })}
+                                        Closes at {format(new Date(notice.notice.end_at), "yyyy. MM. dd. HH:mm:ss")}
                                     </span>
                                 )}
                             </div>
