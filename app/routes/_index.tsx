@@ -99,7 +99,7 @@ export default function LandingPage() {
                     <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_rgba(255,140,0,0.05),_transparent_60%)]" />
                 </div>
 
-                <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-center px-8">
+                <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-center px-8 pt-24 lg:pt-28">
                     <div className="max-w-4xl space-y-12">
                         <div className="inline-flex items-center space-x-4 glass px-6 py-2.5 rounded-full animate-dynamic-reveal">
                             <Sparkles className="text-brand-primary animate-pulse" size={16} />
