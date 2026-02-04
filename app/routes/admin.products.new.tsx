@@ -30,6 +30,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateCache } from "@/lib/cache.server";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
 import type { Route } from "./+types/admin.products.new";
 
 interface Category {
@@ -122,6 +124,8 @@ export async function action({ request }: Route.ActionArgs) {
         }, { status: 500 });
     }
 
+    invalidateCache('order-products');
+    invalidateNoticeSnapshot();
     throw redirect("/admin/products");
 }
 

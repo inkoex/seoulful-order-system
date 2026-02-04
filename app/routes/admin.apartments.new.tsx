@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateCache } from "@/lib/cache.server";
 import type { Route } from "./+types/admin.apartments.new";
 
 const apartmentSchema = z.object({
@@ -87,6 +88,7 @@ export async function action({ request }: Route.ActionArgs) {
         }, { status: 500 });
     }
 
+    invalidateCache('order-apartments');
     throw redirect("/admin/apartments");
 }
 

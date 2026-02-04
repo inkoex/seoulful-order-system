@@ -1,11 +1,18 @@
 import { redirect } from "react-router";
 import { createHmac } from "crypto";
+import bcrypt from "bcryptjs";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || "fallback-secret-key";
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
-export function verifyPassword(password: string): boolean {
+export async function verifyPassword(password: string): Promise<boolean> {
+    // 1. If ADMIN_PASSWORD_HASH is provided, use bcrypt (Secure)
+    if (ADMIN_PASSWORD_HASH) {
+        return bcrypt.compare(password, ADMIN_PASSWORD_HASH);
+    }
+    // 2. Fallback to plain text comparison (Legacy/Support for initial setup)
     return password === ADMIN_PASSWORD;
 }
 

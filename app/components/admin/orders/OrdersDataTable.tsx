@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { flexRender, type Table as TanStackTable } from "@tanstack/react-table";
-import { Link, useSubmit } from "react-router";
+import { Link, useSubmit, useSearchParams } from "react-router";
 import {
   ArrowUp,
   ArrowDown,
@@ -10,6 +10,8 @@ import {
   Unlock,
   XCircle,
   RotateCcw,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import {
   Table,
@@ -28,11 +30,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { type Order, COLUMN_IDS } from "@/lib/tableUtils";
+import { COLUMN_IDS } from "@/lib/tableUtils";
+import { type Order } from "@/models";
 import { ExpandedOrderRow } from "./ExpandedOrderRow";
 
 interface OrdersDataTableProps {
   table: TanStackTable<Order>;
+  page: number;
+  pageSize: number;
+  totalCount: number;
 }
 
 const statusOptions = [
@@ -43,8 +49,9 @@ const statusOptions = [
   { value: "cancelled", label: "취소됨" },
 ];
 
-export function OrdersDataTable({ table }: OrdersDataTableProps) {
+export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDataTableProps) {
   const submit = useSubmit();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   function handleAction(
     intent: string,
@@ -60,6 +67,12 @@ export function OrdersDataTable({ table }: OrdersDataTableProps) {
       });
     }
     submit(formData, { method: "post" });
+  }
+
+  function handlePageChange(newPage: number) {
+    const params = new URLSearchParams(searchParams);
+    params.set("page", newPage.toString());
+    setSearchParams(params);
   }
 
   return (
@@ -276,6 +289,43 @@ export function OrdersDataTable({ table }: OrdersDataTableProps) {
           )}
         </TableBody>
       </Table>
+
+      <div className="flex items-center justify-between px-4 py-4 border-t bg-muted/30">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-medium">{totalCount.toLocaleString()}</span>개 중{" "}
+          <span className="font-medium">{Math.min((page - 1) * pageSize + 1, totalCount).toLocaleString()}</span>
+          {" "}-{" "}
+          <span className="font-medium">{Math.min(page * pageSize, totalCount).toLocaleString()}</span> 표시
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page - 1)}
+            disabled={page <= 1}
+            className="gap-1"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            이전
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">페이지</span>
+            <span className="text-sm font-medium min-w-[60px] text-center">
+              {page} / {Math.ceil(totalCount / pageSize) || 1}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handlePageChange(page + 1)}
+            disabled={page >= Math.ceil(totalCount / pageSize)}
+            className="gap-1"
+          >
+            다음
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }

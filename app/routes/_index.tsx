@@ -1,715 +1,376 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, Form, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
-import { z } from "zod";
-import { useForm, useFieldArray, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addDays } from "date-fns";
-import { CalendarIcon, Loader2, Plus, Minus, XCircle } from "lucide-react";
-
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { useState, useEffect } from "react";
+import { Link } from "react-router";
+import { Button } from "~/components/ui/button";
 import {
-    Form as UiForm,
-    FormControl,
-    FormDescription,
-    FormField,
-    FormItem,
-    FormLabel,
-    FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
-import { getNoticeSnapshot, type NoticeSnapshot } from "@/lib/notices.server";
-import { PageContainer } from "@/components/ui/container";
-import type { Route } from "./+types/_index";
+    ShoppingBag,
+    ArrowRight,
+    ChevronRight,
+    Star,
+    Clock,
+    ShieldCheck,
+    Truck,
+    Sparkles,
+    Instagram,
+    Mail,
+    Heart,
+    Quote
+} from "lucide-react";
 
-// --- Zod Schema ---
-const phoneRegex = /^\d{10}$/;
+const HERO_IMAGES = [
+    "/images/hero-user-0.jpg",
+    "/images/hero-user-1.jpg",
+    "/images/hero-user-2.jpg"
+];
 
-const orderSchema = z.object({
-    apartment: z.string().min(1, "Please select an apartment (아파트를 선택해주세요)"),
-    tower: z.string().min(1, "Please enter your tower (동을 입력해주세요)"),
-    flat_number: z.string().min(1, "Please enter your flat number (호수를 입력해주세요)"),
-    customer_name: z.string().min(1, "Please enter your name (이름을 입력해주세요)"),
-    phone: z.string().regex(phoneRegex, "Please enter a 10-digit number (10자리 숫자로 입력해주세요)"),
-    items: z.array(z.object({
-        productId: z.string(),
-        quantity: z.number().min(0),
-    })).refine((items) => items.some(item => item.quantity > 0), {
-        message: "Please select at least 1 item (최소 1개 이상의 상품을 선택해주세요)",
-        path: ["root"], // attach error to root
-    }),
-    delivery_date: z.date(),
-    payment_method: z.enum(["upi", "cash", "other"]),
-    notes: z.string().optional(),
-    entry_channel: z.string(),
-});
+export default function LandingPage() {
+    const [currentImage, setCurrentImage] = useState(0);
 
-type OrderFormValues = z.infer<typeof orderSchema>;
-
-// --- Loader ---
-export async function loader() {
-    // Fetch products from Supabase with category info
-    // Use anon key which is fine for Select on products (if RLS allows)
-
-    const { data: products, error } = await supabase
-        .from('products')
-        .select(`
-            *,
-            categories (
-                id,
-                name,
-                name_ko,
-                sort_order
-            )
-        `)
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-
-    // Fetch apartments
-    const { data: apartments, error: aptError } = await supabase
-        .from('apartments')
-        .select('id, name, name_ko, sort_order')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true });
-
-    if (error) {
-        console.error("Supabase products fetch error", error);
-        return { products: [], apartments: [] };
-    }
-
-    if (aptError) {
-        console.error("Supabase apartments fetch error", aptError);
-        return { products: [], apartments: [] };
-    }
-
-    // Sort by category sort_order, then by product sort_order
-    const sortedProducts = (products || []).sort((a: any, b: any) => {
-        const catSortA = a.categories?.sort_order ?? 999;
-        const catSortB = b.categories?.sort_order ?? 999;
-        if (catSortA !== catSortB) return catSortA - catSortB;
-        return (a.sort_order || 0) - (b.sort_order || 0);
-    });
-
-    const noticeSnapshot = await getNoticeSnapshot();
-    let visibleProducts = sortedProducts;
-
-    if (noticeSnapshot.notice && !noticeSnapshot.notice.is_all_products) {
-        const allowedIds = new Set(noticeSnapshot.targetProductIds);
-        visibleProducts = sortedProducts.filter((product: any) => allowedIds.has(product.id));
-    }
-
-    return { products: visibleProducts, apartments: apartments || [], notice: noticeSnapshot };
-}
-
-// --- Action ---
-export async function action({ request }: Route.ActionArgs) {
-    const formData = await request.formData();
-    const rawData = Object.fromEntries(formData);
-
-    // Reconstruct items from formData (since it's typically flat)
-    // But standard Form submission converts nested objects poorly unless handled.
-    // We will submit a JSON string for items or parse fields carefully.
-    // EASIER: The client side uses RHF. We can submit the whole form as JSON via useSubmit?
-    // OR: standard formData.
-    // Let's rely on `remix-hook-form` pattern or just parse the JSON payload if we send it as such.
-    // For simplicity, let's assume we submit standard form data.
-    // Zod parsing of FormData is tricky with arrays.
-    // We'll read the 'payload' field if we stringify on submit, OR parse manually.
-
-    const payloadString = formData.get("payload");
-    if (!payloadString || typeof payloadString !== "string") {
-        return data({ error: "Invalid submission format (제출 형식이 올바르지 않습니다)" }, { status: 400 });
-    }
-
-    const payload = JSON.parse(payloadString);
-    // Parse dates: JSON has strings
-    if (payload.delivery_date) {
-        payload.delivery_date = new Date(payload.delivery_date);
-    }
-
-    const result = orderSchema.safeParse(payload);
-
-    if (!result.success) {
-        return data({ error: "Validation failed (검증에 실패했습니다)", details: result.error.flatten() }, { status: 400 });
-    }
-
-    const { items, ...orderInfo } = result.data;
-
-    const noticeSnapshot = await getNoticeSnapshot();
-    if (noticeSnapshot.notice && !noticeSnapshot.orderingOpen) {
-        return data({ error: "Ordering is closed (현재 주문이 마감되었습니다)" }, { status: 400 });
-    }
-
-    if (noticeSnapshot.notice?.delivery_date) {
-        const requestedDate = format(orderInfo.delivery_date, "yyyy-MM-dd");
-        if (requestedDate !== noticeSnapshot.notice.delivery_date) {
-            return data({ error: "Delivery date is fixed by notice. (공지 배달일로 고정됩니다)" }, { status: 400 });
-        }
-    }
-
-    // Filter active items (quantity > 0)
-    const activeItems = items
-        .filter(i => i.quantity > 0)
-        .map(i => ({
-            product_id: i.productId,
-            quantity: i.quantity
-        }));
-
-    if (activeItems.length === 0) {
-        return data({ error: "Please select at least 1 item (최소 1개 이상의 상품을 선택해주세요)" }, { status: 400 });
-    }
-
-    if (noticeSnapshot.notice) {
-        const targetIds = new Set(noticeSnapshot.targetProductIds);
-        const orderQuantityByProduct: Record<string, number> = {};
-        let totalIncoming = 0;
-
-        activeItems.forEach((item) => {
-            if (noticeSnapshot.notice?.is_all_products || targetIds.has(item.product_id)) {
-                totalIncoming += item.quantity;
-                orderQuantityByProduct[item.product_id] = (orderQuantityByProduct[item.product_id] || 0) + item.quantity;
-            }
-        });
-
-        if (noticeSnapshot.totals.totalMax !== null) {
-            const nextTotal = noticeSnapshot.totals.totalUsed + totalIncoming;
-            if (nextTotal > noticeSnapshot.totals.totalMax) {
-                return data({ error: "Order limit reached. Please reduce quantity. (주문 가능 수량을 초과했습니다)" }, { status: 400 });
-            }
-        }
-
-        const soldOut = Object.entries(orderQuantityByProduct).filter(([productId, quantity]) => {
-            const remaining = noticeSnapshot.productRemainingById[productId];
-            if (remaining === undefined) return false;
-            return quantity > remaining;
-        });
-
-        if (soldOut.length > 0) {
-            return data({ error: "Some items are sold out. Please adjust your order. (품절된 상품이 포함되어 있습니다)" }, { status: 400 });
-        }
-    }
-
-    // Call database function to create order with items transactionally
-    // This function handles:
-    // - Atomic order number generation (no race condition)
-    // - Transaction for order + items (all-or-nothing)
-    // - Price calculation from products table
-    // - Edit token generation
-    const { data: orderResult, error: orderError } = await supabase
-        .rpc('create_order_with_items', {
-            p_apartment_id: orderInfo.apartment,  // UUID now instead of TEXT
-            p_tower: orderInfo.tower,
-            p_flat_number: orderInfo.flat_number,
-            p_customer_name: orderInfo.customer_name,
-            p_phone: orderInfo.phone,
-            p_delivery_date: format(orderInfo.delivery_date, 'yyyy-MM-dd'),
-            p_payment_method: orderInfo.payment_method,
-            p_notes: orderInfo.notes || '',
-            p_entry_channel: orderInfo.entry_channel,
-            p_items: activeItems
-        });
-
-    if (orderError) {
-        console.error("Order Creation Error:", orderError);
-        return data({
-            error: "Failed to save order (주문 저장에 실패했습니다)",
-            details: orderError.message
-        }, { status: 500 });
-    }
-
-    if (!orderResult) {
-        return data({ error: "Order creation failed (주문 생성 실패)" }, { status: 500 });
-    }
-
-    // orderResult contains: { id, order_number, edit_token, total_amount }
-    return redirect(`/order/complete?id=${orderResult.id}`);
-}
-
-
-
-// Fix action types
-type ActionResponse =
-    | { error: string; details?: any }
-    | undefined;
-// --- Component ---
-export default function OrderPage({ loaderData }: Route.ComponentProps) {
-    const { products, apartments, notice } = loaderData as unknown as {
-        products: any[];
-        apartments: any[];
-        notice: NoticeSnapshot;
-    };
-    const orderingClosed = Boolean(notice?.notice) && !notice?.orderingOpen;
-    const noticeDeliveryDate = notice?.notice?.delivery_date;
-    const fixedDeliveryDate = noticeDeliveryDate ? new Date(`${noticeDeliveryDate}T00:00:00`) : undefined;
-    const isDeliveryLocked = Boolean(noticeDeliveryDate);
-    const soldOutIds = useMemo(() => new Set(notice?.soldOutProductIds || []), [notice?.soldOutProductIds]);
-
-    if (products.length === 0) {
-        return (
-            <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
-                <Card className="text-center">
-                    <CardHeader>
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-                            <XCircle className="h-10 w-10 text-red-600" />
-                        </div>
-                        <CardTitle className="text-2xl">Orders Unavailable (주문 불가)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                            There are no items available right now.
-                            <br />
-                            Please check back later. (현재 주문 가능한 상품이 없습니다)
-                        </p>
-                    </CardContent>
-                    <CardFooter className="flex justify-center">
-                        <Button asChild variant="outline">
-                            <Link to="/order/lookup">View my order (내 주문 조회)</Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </PageContainer>
-        );
-    }
-
-    const navigation = useNavigation();
-    const submit = useSubmit();
-    const isSubmitting = navigation.state === "submitting";
-    const actionData = useActionData<typeof action>();
-
-    // Safe cast for ActionData
-    const errorData = actionData as ActionResponse;
-    const form = useForm<OrderFormValues>({
-        resolver: zodResolver(orderSchema),
-        defaultValues: {
-            apartment: "",
-            tower: "",
-            flat_number: "",
-            customer_name: "",
-            phone: "",
-            items: products.map(p => ({ productId: p.id, quantity: 0 })),
-            delivery_date: fixedDeliveryDate,
-            payment_method: "upi",
-            notes: "",
-            entry_channel: "customer_direct",
-        },
-    });
-
-    const formControl = form.control as any;
-    const watchedItems = useWatch({ control: form.control, name: "items" });
-    const productsById = useMemo(
-        () => new Map(products.map((product) => [product.id, product])),
-        [products]
-    );
-    const totalAmount = useMemo(() => {
-        if (!watchedItems) return 0;
-        return watchedItems.reduce((total, item) => {
-            const product = productsById.get(item.productId);
-            const price = product?.price || 0;
-            const quantity = Number(item.quantity) || 0;
-            return total + price * quantity;
-        }, 0);
-    }, [productsById, watchedItems]);
-    const deliveryFee = totalAmount > 0 && totalAmount < 500 ? 30 : 0;
-    const grandTotal = totalAmount + deliveryFee;
-
-    function onSubmit(values: OrderFormValues) {
-        // Remove items with 0 quantity (except validation handles it)
-        // Actually we keep them in values but server filters? 
-        // Logic: We must submit `items` array.
-
-        // Filter out 0 items for cleaner payload? 
-        // But index matching is important if we use field array mapping by index.
-        // Let's just submit specific product qtys.
-
-        const formData = new FormData();
-        formData.append("payload", JSON.stringify(values));
-        submit(formData, { method: "post" });
-    }
-
-    if (orderingClosed) {
-        return (
-            <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
-                <Card className="text-center">
-                    <CardHeader>
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-                            <XCircle className="h-10 w-10 text-red-600" />
-                        </div>
-                        <CardTitle className="text-2xl">Orders Unavailable (주문 불가)</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground mb-4">
-                            There are no items available right now.
-                            <br />
-                            Please check back later. (현재 주문 가능한 상품이 없습니다)
-                        </p>
-                    </CardContent>
-                    <CardFooter className="flex justify-center">
-                        <Button asChild variant="outline">
-                            <Link to="/order/lookup">View my order (내 주문 조회)</Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </PageContainer>
-        );
-    }
+    useEffect(() => {
+        const timer = setInterval(() => {
+            setCurrentImage((prev) => (prev + 1) % HERO_IMAGES.length);
+        }, 5000);
+        return () => clearInterval(timer);
+    }, []);
 
     return (
-        <PageContainer size="narrow">
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-center">
-                        <img
-                            src="/images/seoulful-logo.png"
-                            alt="Seoulful Korean Bakery by Yujin"
-                            className="h-auto w-full max-w-[280px]"
-                        />
+        <div className="min-h-screen bg-brand-background font-sans">
+            {/* Global Smooth Scroll & Custom Keyframes */}
+            <style dangerouslySetInnerHTML={{
+                __html: `
+                html { scroll-behavior: smooth; }
+                @keyframes kenburns {
+                    0% { transform: scale(1) translate(0, 0); }
+                    100% { transform: scale(1.15) translate(-1%, -1%); }
+                }
+                @keyframes dynamic-reveal {
+                    0% { opacity: 0; transform: translateY(40px) scale(0.95); }
+                    100% { opacity: 1; transform: translateY(0) scale(1); }
+                }
+                .animate-kenburns {
+                    animation: kenburns 15s ease-in-out infinite alternate;
+                }
+                .animate-dynamic-reveal {
+                    animation: dynamic-reveal 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                    opacity: 0;
+                }
+                .text-glow {
+                    text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+                }
+            `}} />
+
+            {/* Premium Navigation */}
+            <nav className="fixed top-0 z-50 w-full border-b border-white/5 bg-brand-charcoal/10 backdrop-blur-md transition-all duration-500">
+                <div className="mx-auto flex max-w-7xl items-center justify-between px-8 py-6">
+                    <div className="flex items-center space-x-12">
+                        <Link to="/" className="text-3xl font-black tracking-tighter text-white">Seoulful<span className="text-brand-primary">.</span></Link>
+                        <div className="hidden space-x-10 text-[10px] font-black uppercase tracking-[0.4em] text-white/50 lg:flex">
+                            <a href="#menu" className="hover:text-white transition-colors">Menu</a>
+                            <a href="#story" className="hover:text-white transition-colors">Story</a>
+                            <a href="#how-it-works" className="hover:text-white transition-colors">Process</a>
+                        </div>
                     </div>
-                </CardHeader>
-                <CardContent>
-                    {notice?.notice?.delivery_date && (
-                        <div className="mb-6 rounded-md border bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                            <div className="flex flex-wrap items-baseline gap-x-2">
-                                <span className="text-sm font-semibold uppercase tracking-wide text-amber-700">Delivery Date (배송일):</span>
-                                <span className="text-sm font-semibold">
-                                    {format(new Date(`${notice.notice.delivery_date}T00:00:00`), "yyyy-MM-dd (EEE)")}
+                    <Button asChild className="rounded-xl bg-brand-primary px-8 text-xs font-black uppercase tracking-widest text-white hover:bg-brand-primary/90 shadow-lg shadow-brand-primary/20">
+                        <Link to="/order" prefetch="viewport">Order Now</Link>
+                    </Button>
+                </div>
+            </nav>
+
+            {/* Elevated Hero Section with Slideshow */}
+            <section className="relative h-screen min-h-[800px] w-full overflow-hidden bg-brand-charcoal">
+                <div className="absolute inset-0 z-0">
+                    {HERO_IMAGES.map((img, idx) => (
+                        <div
+                            key={img}
+                            className={`absolute inset-0 transition-opacity duration-[4000ms] ease-in-out ${idx === currentImage ? "opacity-100" : "opacity-0"
+                                }`}
+                        >
+                            <img
+                                src={img}
+                                alt="Seoulful Bakery Hero"
+                                className="h-full w-full object-cover animate-kenburns"
+                                style={{ animationDelay: `${idx * -7}s` }}
+                            />
+                        </div>
+                    ))}
+
+                    {/* Dynamic Overlays - Reduced Opacity for better visibility */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal via-brand-charcoal/20 to-transparent opacity-70" />
+                    <div className="absolute inset-0 bg-oven-glow mix-blend-screen opacity-20" />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,_rgba(255,140,0,0.05),_transparent_60%)]" />
+                </div>
+
+                <div className="relative z-10 mx-auto flex h-full max-w-7xl flex-col justify-center px-8">
+                    <div className="max-w-4xl space-y-12">
+                        <div className="inline-flex items-center space-x-4 glass px-6 py-2.5 rounded-full animate-dynamic-reveal">
+                            <Sparkles className="text-brand-primary animate-pulse" size={16} />
+                            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-white/90">Premium Korean Bakery</span>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h1 className="leading-[1.1] text-white selection:bg-brand-primary">
+                                <span className="block text-5xl md:text-7xl lg:text-8xl font-serif italic font-light animate-dynamic-reveal [animation-delay:200ms] text-white/90">Taste of</span>
+                                <span className="block text-7xl font-bold tracking-tight md:text-9xl lg:text-[9rem] animate-dynamic-reveal [animation-delay:400ms] mt-4">
+                                    Seoul<span className="text-brand-primary">.</span>
                                 </span>
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-3 text-xs text-amber-800">
-                                {notice.totals.totalRemaining !== null && (
-                                    <span>
-                                        Remaining: {notice.totals.totalRemaining} / {notice.totals.totalMax}
-                                    </span>
-                                )}
-                                {notice.notice.end_at && (
-                                    <span>
-                                        Closes at {new Date(notice.notice.end_at).toLocaleString("ko-KR", { hour12: false })}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
-                    )}
-                    <UiForm {...form}>
-                        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-
-                            {/* Apartment */}
-                            <FormField
-                                control={formControl}
-                                name="apartment"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Apartment (아파트)</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl>
-                                                <SelectTrigger>
-                                                    <SelectValue placeholder="Select an apartment (아파트 선택)" />
-                                                </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                                {apartments.map((apartment) => (
-                                                    <SelectItem key={apartment.id} value={apartment.id}>
-                                                        {apartment.name} ({apartment.name_ko})
-                                                    </SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                {/* Tower */}
-                                <FormField
-                                    control={formControl}
-                                    name="tower"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Tower (동)</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="e.g., A (예: A)" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                                {/* Flat */}
-                                <FormField
-                                    control={formControl}
-                                    name="flat_number"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Flat No. (호)</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="e.g., 101 (예: 101)" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                            </h1>
                         </div>
 
-                            {/* Name */}
-                            <FormField
-                                control={formControl}
-                                name="customer_name"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Name (성함)</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="Your name (이름)" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
+                        <p className="max-w-xl text-xl leading-relaxed text-white/60 md:text-2xl font-light animate-dynamic-reveal [animation-delay:600ms]">
+                            Bringing the soul of Korean baking to India.
+                            Handcrafted in small batches with premium flour and <span className="text-white/80 italic font-serif">unmatched sincerity.</span>
+                        </p>
 
-                            {/* Phone */}
-                            <FormField
-                                control={formControl}
-                                name="phone"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>WhatsApp No. (왓츠앱 번호)</FormLabel>
-                                        <FormControl>
-                                            <Input placeholder="1234567890" type="tel" maxLength={10} {...field} />
-                                        </FormControl>
-                                        <FormDescription>Enter 10 digits only (숫자 10자리만 입력해주세요)</FormDescription>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            {/* Products */}
-                            <div className="space-y-4 border rounded-md p-4">
-                                {products.map((product, index) => (
-                                    <FormField
-                                        key={product.id}
-                                        control={formControl}
-                                        name={`items.${index}.quantity`}
-                                        render={({ field }) => (
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-sm">
-                                                    <p className="font-medium">{product.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{product.name_ko} - ₹{product.price}</p>
-                                                    {soldOutIds.has(product.id) && (
-                                                        <p className="text-xs font-semibold text-red-600">Sold out (품절)</p>
-                                                    )}
-                                                    {/* Hidden input for productId */}
-                                                    <input type="hidden" {...form.register(`items.${index}.productId`)} value={product.id} />
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-8 w-8"
-                                                        onClick={() => {
-                                                            const val = Number(field.value);
-                                                            if (val > 0) field.onChange(val - 1);
-                                                        }}
-                                                        disabled={orderingClosed}
-                                                    >
-                                                        <Minus className="h-4 w-4" />
-                                                    </Button>
-                                                    <span className="w-6 text-center">{field.value}</span>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-8 w-8"
-                                                        onClick={() => {
-                                                            const val = Number(field.value);
-                                                            field.onChange(val + 1);
-                                                        }}
-                                                        disabled={orderingClosed || soldOutIds.has(product.id)}
-                                                    >
-                                                        <Plus className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    />
-                                ))}
-                                {form.formState.errors.root && (
-                                    <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
-                                )}
-                                <div className="border-t pt-3 space-y-2 text-sm">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Subtotal (선택 합계)</span>
-                                        <span className="font-semibold">₹{totalAmount}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Delivery fee (₹500+ free) (배달비)</span>
-                                        <span className={deliveryFee ? "font-semibold" : "text-muted-foreground"}>
-                                            {deliveryFee ? `₹${deliveryFee}` : "Free (무료)"}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between font-semibold">
-                                        <span>Estimated total (예상 합계)</span>
-                                        <span>₹{grandTotal}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Delivery Date */}
-                            {isDeliveryLocked ? (
-                                <FormField
-                                    control={formControl}
-                                    name="delivery_date"
-                                    render={({ field }) => (
-                                        <input
-                                            type="hidden"
-                                            name={field.name}
-                                            ref={field.ref}
-                                            value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
-                                            onChange={() => null}
-                                        />
-                                    )}
-                                />
-                            ) : (
-                                <FormField
-                                    control={formControl}
-                                    name="delivery_date"
-                                    render={({ field }) => (
-                                        <FormItem className="flex flex-col">
-                                            <FormLabel>Delivery date (배달 희망일)</FormLabel>
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <FormControl>
-                                                        <Button
-                                                            variant={"outline"}
-                                                            className={cn(
-                                                                "w-full justify-start text-left font-normal",
-                                                                !field.value && "text-muted-foreground"
-                                                            )}
-                                                        >
-                                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {field.value ? (
-                                                                format(field.value, "PPP")
-                                                            ) : (
-                                                                <span>Pick a date (날짜 선택)</span>
-                                                            )}
-                                                        </Button>
-                                                    </FormControl>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-auto p-0" align="start">
-                                                    <Calendar
-                                                        mode="single"
-                                                        selected={field.value}
-                                                        onSelect={field.onChange}
-                                                        disabled={(date) =>
-                                                            date < new Date() || date > addDays(new Date(), 3)
-                                                        }
-                                                        initialFocus
-                                                    />
-                                                </PopoverContent>
-                                            </Popover>
-                                            <FormDescription>
-                                                Choose within 3 days. Orders close 8 PM the day before. (오늘부터 3일 이내 선택 가능)
-                                            </FormDescription>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )}
-
-                            {/* Payment */}
-                            <FormField
-                                control={formControl}
-                                name="payment_method"
-                                render={({ field }) => (
-                                    <FormItem className="space-y-4">
-                                        <FormLabel>Payment (결제 방식)</FormLabel>
-                                        <FormControl>
-                                            <RadioGroup
-                                                onValueChange={field.onChange}
-                                                defaultValue={field.value}
-                                                className="gap-3 pt-2"
-                                            >
-                                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                                    <FormControl>
-                                                        <RadioGroupItem value="upi" />
-                                                    </FormControl>
-                                                    <FormLabel className="font-normal">UPI (GPay/PhonePe 등)</FormLabel>
-                                                </FormItem>
-                                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                                    <FormControl>
-                                                        <RadioGroupItem value="cash" />
-                                                    </FormControl>
-                                                    <FormLabel className="font-normal">Cash (현금)</FormLabel>
-                                                </FormItem>
-                                                <FormItem className="flex items-center space-x-3 space-y-0">
-                                                    <FormControl>
-                                                        <RadioGroupItem value="other" />
-                                                    </FormControl>
-                                                    <FormLabel className="font-normal">Other (기타)</FormLabel>
-                                                </FormItem>
-                                            </RadioGroup>
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            {/* Notes */}
-                            <FormField
-                                control={formControl}
-                                name="notes"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Notes (특이사항)</FormLabel>
-                                        <FormControl>
-                                            <Textarea
-                                                placeholder="e.g., Please leave it with security (예: 경비실에 맡겨주세요)"
-                                                className="resize-none"
-                                                {...field}
-                                            />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-
-                            {/* Server Error Message */}
-                            {errorData?.error && (
-                                <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
-                                    {errorData.error}
-                                    {errorData.details && <pre className="text-xs pt-1">{JSON.stringify(errorData.details, null, 2)}</pre>}
-                                </div>
-                            )}
-
-                            <Button type="submit" className="w-full" disabled={isSubmitting || products.length === 0 || orderingClosed}>
-                                {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Placing order... (주문 접수 중...)
-                                    </>
-                                ) : (
-                                    "Place order (주문하기)"
-                                )}
+                        <div className="flex flex-col space-y-5 sm:flex-row sm:space-x-8 sm:space-y-0 animate-dynamic-reveal [animation-delay:800ms]">
+                            <Button asChild size="lg" className="h-18 rounded-xl bg-brand-primary px-12 text-lg font-black uppercase tracking-widest transition-all hover:scale-105 hover:bg-brand-primary/90 hover:shadow-[0_20px_50px_rgba(207,99,23,0.4)]">
+                                <Link to="/order" prefetch="render">Pre-order Now</Link>
                             </Button>
-                        </form>
-                    </UiForm>
-                </CardContent>
-            </Card>
-        </PageContainer>
+                            <Button asChild variant="outline" size="lg" className="h-18 rounded-xl glass border-white/10 px-12 text-lg font-black uppercase tracking-widest text-white transition-all hover:bg-white hover:text-brand-charcoal">
+                                <a href="#menu">View Menu</a>
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Vertical Branding */}
+                <div className="absolute right-12 top-1/2 -translate-y-1/2 hidden lg:flex flex-col items-center space-y-12 animate-dynamic-reveal [animation-delay:1000ms]">
+                    <div className="h-40 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                    <span className="rotate-90 text-[10px] font-black uppercase tracking-[0.5em] text-white/20 whitespace-nowrap">Bread with Sincerity</span>
+                    <div className="h-40 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                </div>
+            </section>
+
+            {/* Brand Story */}
+            <section id="story" className="py-32 bg-white/50">
+                <div className="mx-auto max-w-3xl px-6 text-center space-y-8">
+                    <h2 className="text-4xl font-black tracking-tight md:text-5xl">The Seoulful Standard</h2>
+                    <p className="text-xl leading-relaxed text-brand-charcoal/80 font-light">
+                        Bringing the heart of Korean baking to your home with unmatched quality and care.
+                        Emphasizing slow baking and the art of patience—every loaf is a testament to our dedication
+                        to quality and the warmth of Korean traditions.
+                    </p>
+                    <div className="flex justify-center">
+                        <div className="h-20 w-px bg-gradient-to-b from-brand-primary to-transparent" />
+                    </div>
+                </div>
+            </section>
+
+            {/* Cinematic Features Section */}
+            <section className="py-32 bg-brand-background relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-1/3 h-full bg-[radial-gradient(circle_at_100%_0%,_rgba(207,99,23,0.05),_transparent_70%)]" />
+
+                <div className="mx-auto max-w-7xl px-8">
+                    <div className="grid gap-16 md:grid-cols-3">
+                        {[
+                            {
+                                title: "Small-batch Sincerity",
+                                desc: "Every loaf is baked in strictly limited quantities. We focus on quality over volume, ensuring each piece is perfect.",
+                                label: "QUALITY"
+                            },
+                            {
+                                title: "Honest Ingredients",
+                                desc: "No artificial enhancers. Pure organic milk, premium artisan flour, and traditional slow-fermentation techniques.",
+                                label: "PURITY"
+                            },
+                            {
+                                title: "Korean Tradition",
+                                desc: "Meeting the vibrant spirit of modern India with the disciplined heart of authentic Korean bakery traditions.",
+                                label: "HERITAGE"
+                            }
+                        ].map((feature, i) => (
+                            <div key={i} className="space-y-8 group">
+                                <div className="space-y-4">
+                                    <span className="text-[10px] font-black tracking-[0.4em] text-brand-primary">{feature.label}</span>
+                                    <h3 className="text-4xl font-black leading-none">{feature.title}</h3>
+                                </div>
+                                <div className="h-px w-12 bg-brand-charcoal/10 transition-all duration-500 group-hover:w-full group-hover:bg-brand-primary" />
+                                <p className="text-xl text-brand-charcoal/50 leading-relaxed font-light">{feature.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Signature Menu - Visual Focus */}
+            <section id="menu" className="py-40 bg-white">
+                <div className="mx-auto max-w-[1400px] px-8">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mb-24 gap-12">
+                        <div className="space-y-6">
+                            <h2 className="text-7xl font-black tracking-tight leading-none uppercase">Full-Flavored<br /><span className="text-brand-primary">Signatures.</span></h2>
+                            <p className="text-2xl text-brand-charcoal/40 max-w-md font-light">Crafted once, loved forever. Discover our most celebrated creations.</p>
+                        </div>
+                        <Button variant="link" asChild className="p-0 h-auto text-xs font-black uppercase tracking-[0.4em] text-brand-charcoal hover:text-brand-primary no-underline transition-all">
+                            <Link to="/order" prefetch="viewport" className="flex items-center gap-4">
+                                <span>Explore Catalog</span>
+                                <div className="h-[1px] w-12 bg-brand-charcoal/20 transition-all group-hover:w-20 group-hover:bg-brand-primary" />
+                            </Link>
+                        </Button>
+                    </div>
+
+                    <div className="grid gap-12 lg:grid-cols-3">
+                        {[
+                            { name: "Salt Bread", nameKo: "소금빵", price: "₹120", tag: "SIGNATURE", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuAipp36g36cissaP_E217_43UKSwHBDMb8HKWVCvXQO36Ge12Z9JLksWN-dOvh7uOcOINMJZ14W5dCVmlIj10TJKB01eAKyIvlVB2HTxmg9xZgSc2TmQ18pIDc7Sm-3bB44Z9yJqdxhM794-FyFrzlRZMIiyhxq77J8GM5Jw3XpO9XppdBxOcG2JPOFG-_gpIEhICyD1ucg0MvJcQlmONaW902Bs0h5cwqsDCT0pFuAN5rcpe4WJC3oRsrBsgPp5vtEvZML-I0ZSLE" },
+                            { name: "Scones", nameKo: "스콘", price: "₹150", tag: "MUST TRY", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuDMP0ZEqFCqsUdVifva84HDQBxEpXzEVlyY15F0m-jPgqGue6FKBuR_s48w3nV8dOK6SI1bgYRSvk6oEE0yyFOD6zn5KA8-z8gBTwOvn_-jXWx-sUjbjJLFeot14Wfl-x1FoftlxUhYqJ1DtoeElZnkLDxNWjLzSdTmD9pxXRA8us-f6_ODZ08DIORkC9ImMwGY8wranDuapMf_Ei8SyoU8XuqWyhN0NqcPk5M9MLeFqxgtPzbQfRuICm1lE5QYDHjTEk0brjo8VFA" },
+                            { name: "Milk Bread", nameKo: "식빵", price: "₹220", tag: "DAILY", img: "https://lh3.googleusercontent.com/aida-public/AB6AXuBmqDbHxOfWQ-pguTSv-hPtN6nKeGsybpo2czDZrQzhXu7Gx27Ku5mOhx6-q1voP0RkqXF6ocuijiF2Kdw46h7496q9FfqPtIl8d1b829sakqFyJsv1EBDZVHrT8xn51khv_riGWeSWox7ttpmMYRGSOivACdesDizKhbvP6B4qKUzGVJQBeAKkf-3RgaER3KKlLO57okD44hijDYDHYTWLuwROOoemfEgq8oZqA82mRvGk5jw40c4W3VGnw6pIpcdj5JdRJ_xf1JI" }
+                        ].map((item, i) => (
+                            <div key={i} className="group relative">
+                                <div className="aspect-[4/5] overflow-hidden rounded-[2.5rem] bg-brand-background">
+                                    <img src={item.img} alt={item.name} className="h-full w-full object-cover transition-transform duration-1000 group-hover:scale-110" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-brand-charcoal/80 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+
+                                    <div className="absolute bottom-10 left-10 right-10 translate-y-8 opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+                                        <Button asChild className="w-full h-16 rounded-2xl bg-white text-brand-charcoal font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white border-none">
+                                            <Link to="/order" prefetch="viewport">Order Quick</Link>
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="mt-8 flex justify-between items-start px-4">
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] font-black tracking-widest text-brand-primary uppercase">{item.tag}</span>
+                                        <h4 className="text-4xl font-black uppercase tracking-tight">{item.name}</h4>
+                                        <p className="text-brand-charcoal/30 font-bold">{item.nameKo}</p>
+                                    </div>
+                                    <span className="text-2xl font-black text-brand-charcoal">{item.price}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Process Section - Abstract Design */}
+            <section id="how-it-works" className="py-40 bg-brand-charcoal text-white relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,_rgba(255,255,255,0.03),_transparent_50%)]" />
+
+                <div className="mx-auto max-w-7xl px-8 relative z-10">
+                    <div className="grid lg:grid-cols-2 gap-24 items-center">
+                        <div className="space-y-12">
+                            <div className="space-y-6">
+                                <span className="text-[10px] font-black tracking-[0.4em] text-brand-primary uppercase">The Journey</span>
+                                <h2 className="text-7xl font-black tracking-tight leading-none uppercase">From Oven<br />to Doorstep.</h2>
+                            </div>
+                            <p className="text-2xl text-white/40 font-light max-w-md leading-relaxed">A meticulous process designed to bring you bread as it was meant to be: fresh, honest, and seoulful.</p>
+
+                            <div className="pt-8">
+                                <Button asChild className="h-16 rounded-xl bg-white text-brand-charcoal font-black uppercase tracking-widest hover:bg-brand-primary hover:text-white transition-all">
+                                    <Link to="/order" prefetch="viewport">Start Your Order</Link>
+                                </Button>
+                            </div>
+                        </div>
+
+                        <div className="space-y-16">
+                            {[
+                                { step: "01", title: "Reserve by 8 PM", desc: "Our day ends when your choices are made. We gather all orders by 8 PM to plan the night's bake." },
+                                { step: "02", title: "Midnight Alchemy", desc: "While the world sleeps, our bakers begin the slow fermentation and careful shaping of every loaf." },
+                                { step: "03", title: "Fresh Awakening", desc: "Early morning delivery ensures the warmth of our ovens reaches your home by the afternoon." }
+                            ].map((item, i) => (
+                                <div key={i} className="flex gap-10 group">
+                                    <span className="text-4xl font-black text-brand-primary opacity-40 group-hover:opacity-100 transition-opacity font-mono">{item.step}</span>
+                                    <div className="space-y-4">
+                                        <h3 className="text-3xl font-black uppercase tracking-tight">{item.title}</h3>
+                                        <p className="text-lg text-white/40 font-light leading-relaxed">{item.desc}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Testimonial Section - Refined Emotional Sans */}
+            <section className="py-48 bg-white relative overflow-hidden">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,_rgba(207,99,23,0.02),_transparent_50%)]" />
+
+                <div className="mx-auto max-w-5xl px-8 text-center space-y-16 relative z-10">
+                    <div className="flex justify-center">
+                        <Quote className="text-brand-primary/10" size={100} fill="currentColor" />
+                    </div>
+
+                    <p className="text-3xl md:text-5xl lg:text-5xl font-bold italic leading-tight text-brand-charcoal/70 selection:bg-brand-primary/10 tracking-tight">
+                        "The milk bread reminds me of my childhood in Seoul - soft, pillowy, and filled with warmth. It's more than just bread; <span className="text-brand-primary not-italic">it's home."</span>
+                    </p>
+
+                    <div className="pt-8 space-y-3">
+                        <div className="h-px w-24 bg-brand-charcoal/5 mx-auto" />
+                        <p className="text-sm font-black tracking-[0.6em] text-brand-charcoal uppercase">JI-WON PARK</p>
+                        <p className="text-[10px] font-bold text-brand-charcoal/30 uppercase tracking-[0.3em]">LOYAL CUSTOMER SINCE 2025</p>
+                    </div>
+                </div>
+            </section>
+
+            {/* Newsletter - Integrated Design */}
+            <section className="pb-40 px-8">
+                <div className="mx-auto max-w-7xl bg-brand-primary rounded-[3rem] p-16 md:p-32 text-white relative overflow-hidden text-center group">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,_rgba(255,255,255,0.2),_transparent_70%)]" />
+                    <div className="relative z-10 max-w-2xl mx-auto space-y-12">
+                        <h2 className="text-5xl md:text-7xl font-black tracking-tighter leading-none">Join the<br />Seoulful Club.</h2>
+                        <p className="text-xl md:text-2xl font-medium opacity-80 leading-relaxed">Receive weekly specials and <span className="underline decoration-4 underline-offset-8">10% off</span> your first artisan pre-order.</p>
+
+                        <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                            <input
+                                type="email"
+                                placeholder="YOUR@EMAIL.COM"
+                                className="h-18 flex-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl px-10 text-white placeholder:text-white/40 font-black tracking-widest focus:outline-none focus:ring-4 focus:ring-white/10 transition-all uppercase text-sm"
+                            />
+                            <Button className="h-18 px-12 rounded-2xl bg-white text-brand-primary font-black uppercase tracking-widest hover:scale-105 transition-all shadow-2xl">
+                                Subscribe
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            </section >
+
+            {/* Footer - Brutalist Luxe */}
+            < footer className="bg-brand-background text-brand-charcoal pt-32 pb-16" >
+                <div className="mx-auto max-w-7xl px-8">
+                    <div className="grid gap-16 md:grid-cols-4 lg:grid-cols-5">
+                        <div className="col-span-2 lg:col-span-2 space-y-10">
+                            <Link to="/" className="text-4xl font-black tracking-tighter">Seoulful<span className="text-brand-primary">.</span></Link>
+                            <p className="max-w-xs text-brand-charcoal/40 leading-relaxed text-xl font-light">
+                                Premium artisan bakery bringing the slow-baked sincerity of Seoul to India.
+                            </p>
+                            <div className="flex space-x-6">
+                                <Link to="#" className="text-brand-charcoal hover:text-brand-primary transition-colors">
+                                    <Instagram size={28} />
+                                </Link>
+                                <Link to="#" className="text-brand-charcoal hover:text-brand-primary transition-colors">
+                                    <Mail size={28} />
+                                </Link>
+                            </div>
+                        </div>
+                        <div>
+                            <h5 className="mb-8 font-black text-[10px] uppercase tracking-[0.4em] text-brand-charcoal/20">Explore</h5>
+                            <ul className="space-y-4 text-sm font-black uppercase tracking-widest transition-all">
+                                <li><a href="#menu" className="hover:text-brand-primary">Catalog</a></li>
+                                <li><a href="#story" className="hover:text-brand-primary">Our Story</a></li>
+                                <li><Link to="/order" prefetch="viewport" className="hover:text-brand-primary">Order Now</Link></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 className="mb-8 font-black text-[10px] uppercase tracking-[0.4em] text-brand-charcoal/20">Information</h5>
+                            <ul className="space-y-4 text-sm font-black uppercase tracking-widest transition-all">
+                                <li><Link to="#" className="hover:text-brand-primary">Shipping</Link></li>
+                                <li><Link to="#" className="hover:text-brand-primary">Contact</Link></li>
+                                <li><Link to="#" className="hover:text-brand-primary">FAQs</Link></li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h5 className="mb-8 font-black text-[10px] uppercase tracking-[0.4em] text-brand-charcoal/20">Legal</h5>
+                            <ul className="space-y-4 text-sm font-black uppercase tracking-widest transition-all">
+                                <li><Link to="#" className="hover:text-brand-primary">Privacy</Link></li>
+                                <li><Link to="#" className="hover:text-brand-primary">Terms</Link></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div className="mt-40 border-t border-brand-charcoal/5 pt-12 flex flex-col md:flex-row justify-between items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-brand-charcoal/30">
+                        <p>© 2024 SEOULFUL BAKERY INDIA. HANDCRAFTED WITH SINCERITY.</p>
+                        <p className="flex items-center space-x-3">
+                            <span>Crafted with</span>
+                            <Heart size={14} className="fill-brand-primary text-brand-primary" />
+                            <span>and Premium Flour</span>
+                        </p>
+                    </div>
+                </div>
+            </footer >
+        </div >
     );
 }

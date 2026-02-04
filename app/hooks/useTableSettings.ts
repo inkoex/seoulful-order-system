@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
+import { type OrderTableSettings } from "@/models";
 import {
-  type OrderTableSettings,
   DEFAULT_TABLE_SETTINGS,
   TABLE_SETTINGS_STORAGE_KEY,
   parseTableSettings,

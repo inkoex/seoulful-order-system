@@ -24,6 +24,7 @@ import {
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
 import { cn } from "@/lib/utils";
 
 type NoticeLimitRow = {
@@ -206,6 +207,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
         await supabaseAdmin.from("notice_limits").insert(limits);
     }
 
+    invalidateNoticeSnapshot();
     return redirect("/admin/notices");
 }
 
@@ -345,12 +347,12 @@ export default function AdminNoticeEditPage() {
                                             />
                                         </PopoverContent>
                                     </Popover>
-                                        <Input
-                                            type="time"
-                                            value={startTime}
-                                            onChange={(event) => setStartTime(event.target.value)}
-                                        />
-                                    </div>
+                                    <Input
+                                        type="time"
+                                        value={startTime}
+                                        onChange={(event) => setStartTime(event.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">종료 시간</label>
@@ -382,12 +384,12 @@ export default function AdminNoticeEditPage() {
                                             />
                                         </PopoverContent>
                                     </Popover>
-                                        <Input
-                                            type="time"
-                                            value={endTime}
-                                            onChange={(event) => setEndTime(event.target.value)}
-                                        />
-                                    </div>
+                                    <Input
+                                        type="time"
+                                        value={endTime}
+                                        onChange={(event) => setEndTime(event.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">배달일</label>
@@ -430,61 +432,61 @@ export default function AdminNoticeEditPage() {
                                 />
                                 <span>모든 상품 대상</span>
                             </div>
-                        <div className={cn("space-y-3", isAllProducts && "opacity-60")}> 
-                            <label className="text-sm font-medium">공지 대상 상품</label>
-                            <div className="space-y-4">
-                                {groupedProducts.map(([categoryName, items]) => {
-                                    const categoryIds = items.map((item: any) => item.id);
-                                    const selectedCount = categoryIds.filter((id) => effectiveSelectedIds.includes(id)).length;
-                                    const isChecked = selectedCount === categoryIds.length && categoryIds.length > 0;
-                                    const isIndeterminate = selectedCount > 0 && selectedCount < categoryIds.length;
+                            <div className={cn("space-y-3", isAllProducts && "opacity-60")}>
+                                <label className="text-sm font-medium">공지 대상 상품</label>
+                                <div className="space-y-4">
+                                    {groupedProducts.map(([categoryName, items]) => {
+                                        const categoryIds = items.map((item: any) => item.id);
+                                        const selectedCount = categoryIds.filter((id) => effectiveSelectedIds.includes(id)).length;
+                                        const isChecked = selectedCount === categoryIds.length && categoryIds.length > 0;
+                                        const isIndeterminate = selectedCount > 0 && selectedCount < categoryIds.length;
 
-                                    return (
-                                        <div key={categoryName} className="rounded-md border border-dashed p-3">
-                                            <div className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                <Checkbox
-                                                    checked={isIndeterminate ? "indeterminate" : isChecked}
-                                                    onCheckedChange={(checked) => {
-                                                        setManualSelectedProductIds((prev) => {
-                                                            if (checked) {
-                                                                const merged = new Set(prev);
-                                                                categoryIds.forEach((id) => merged.add(id));
-                                                                return Array.from(merged);
-                                                            }
-                                                            return prev.filter((id) => !categoryIds.includes(id));
-                                                        });
-                                                    }}
-                                                    disabled={isAllProducts}
-                                                />
-                                                <span>{categoryName}</span>
+                                        return (
+                                            <div key={categoryName} className="rounded-md border border-dashed p-3">
+                                                <div className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                    <Checkbox
+                                                        checked={isIndeterminate ? "indeterminate" : isChecked}
+                                                        onCheckedChange={(checked) => {
+                                                            setManualSelectedProductIds((prev) => {
+                                                                if (checked) {
+                                                                    const merged = new Set(prev);
+                                                                    categoryIds.forEach((id) => merged.add(id));
+                                                                    return Array.from(merged);
+                                                                }
+                                                                return prev.filter((id) => !categoryIds.includes(id));
+                                                            });
+                                                        }}
+                                                        disabled={isAllProducts}
+                                                    />
+                                                    <span>{categoryName}</span>
+                                                </div>
+                                                <div className="mt-3 grid gap-2 pl-6 md:grid-cols-2 lg:grid-cols-3">
+                                                    {items.map((product: any) => (
+                                                        <label key={product.id} className="flex items-center gap-2 text-sm">
+                                                            <Checkbox
+                                                                checked={effectiveSelectedIds.includes(product.id)}
+                                                                onCheckedChange={(checked) => {
+                                                                    setManualSelectedProductIds((prev) => {
+                                                                        if (checked) {
+                                                                            return prev.includes(product.id) ? prev : [...prev, product.id];
+                                                                        }
+                                                                        return prev.filter((id) => id !== product.id);
+                                                                    });
+                                                                }}
+                                                                disabled={isAllProducts}
+                                                            />
+                                                            <span>{product.name} ({product.name_ko || "-"})</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
                                             </div>
-                                            <div className="mt-3 grid gap-2 pl-6 md:grid-cols-2 lg:grid-cols-3">
-                                                {items.map((product: any) => (
-                                                    <label key={product.id} className="flex items-center gap-2 text-sm">
-                                                        <Checkbox
-                                                            checked={effectiveSelectedIds.includes(product.id)}
-                                                            onCheckedChange={(checked) => {
-                                                                setManualSelectedProductIds((prev) => {
-                                                                    if (checked) {
-                                                                        return prev.includes(product.id) ? prev : [...prev, product.id];
-                                                                    }
-                                                                    return prev.filter((id) => id !== product.id);
-                                                                });
-                                                            }}
-                                                            disabled={isAllProducts}
-                                                        />
-                                                        <span>{product.name} ({product.name_ko || "-"})</span>
-                                                    </label>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    );
-                                })}
+                                        );
+                                    })}
+                                </div>
+                                {!isAllProducts && manualSelectedProductIds.map((productId) => (
+                                    <input key={productId} type="hidden" name="notice_product_ids" value={productId} />
+                                ))}
                             </div>
-                            {!isAllProducts && manualSelectedProductIds.map((productId) => (
-                                <input key={productId} type="hidden" name="notice_product_ids" value={productId} />
-                            ))}
-                        </div>
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-2">

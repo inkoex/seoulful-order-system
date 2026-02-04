@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateCache } from "@/lib/cache.server";
 
 const apartmentSchema = z.object({
     name: z.string().min(1, "영문 이름을 입력해주세요"),
@@ -96,6 +97,7 @@ export async function action({ request, params }: { request: Request; params: { 
             }, { status: 500 });
         }
 
+        invalidateCache('order-apartments');
         throw redirect("/admin/apartments");
     }
 
@@ -148,6 +150,7 @@ export async function action({ request, params }: { request: Request; params: { 
         }, { status: 500 });
     }
 
+    invalidateCache('order-apartments');
     throw redirect("/admin/apartments");
 }
 

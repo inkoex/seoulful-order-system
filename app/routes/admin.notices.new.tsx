@@ -24,6 +24,7 @@ import {
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
 import { cn } from "@/lib/utils";
 
 type NoticeLimitRow = {
@@ -176,6 +177,7 @@ export async function action({ request }: ActionFunctionArgs) {
         await supabaseAdmin.from("notice_limits").insert(limits);
     }
 
+    invalidateNoticeSnapshot();
     return redirect("/admin/notices");
 }
 
@@ -313,12 +315,12 @@ export default function AdminNoticeNewPage() {
                                             />
                                         </PopoverContent>
                                     </Popover>
-                                        <Input
-                                            type="time"
-                                            value={startTime}
-                                            onChange={(event) => setStartTime(event.target.value)}
-                                        />
-                                    </div>
+                                    <Input
+                                        type="time"
+                                        value={startTime}
+                                        onChange={(event) => setStartTime(event.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">종료 시간</label>
@@ -350,12 +352,12 @@ export default function AdminNoticeNewPage() {
                                             />
                                         </PopoverContent>
                                     </Popover>
-                                        <Input
-                                            type="time"
-                                            value={endTime}
-                                            onChange={(event) => setEndTime(event.target.value)}
-                                        />
-                                    </div>
+                                    <Input
+                                        type="time"
+                                        value={endTime}
+                                        onChange={(event) => setEndTime(event.target.value)}
+                                    />
+                                </div>
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">배달일</label>
@@ -407,7 +409,7 @@ export default function AdminNoticeNewPage() {
                                         const isChecked = selectedCount === categoryIds.length && categoryIds.length > 0;
                                         const isIndeterminate = selectedCount > 0 && selectedCount < categoryIds.length;
 
-                                            return (
+                                        return (
                                             <div key={categoryName} className="rounded-md border border-dashed p-3">
                                                 <div className="flex items-center gap-2 rounded-md bg-muted/60 px-2 py-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                                                     <Checkbox
@@ -446,9 +448,9 @@ export default function AdminNoticeNewPage() {
                                                     ))}
                                                 </div>
                                             </div>
-                                            );
-                                        })}
-                                    </div>
+                                        );
+                                    })}
+                                </div>
                                 {!isAllProducts && manualSelectedProductIds.map((productId) => (
                                     <input key={productId} type="hidden" name="notice_product_ids" value={productId} />
                                 ))}

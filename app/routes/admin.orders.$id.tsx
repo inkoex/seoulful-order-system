@@ -139,6 +139,8 @@ export default function AdminOrderDetailPage() {
         paid: { label: "지불 완료", className: "bg-emerald-700" },
         cancelled: { label: "취소됨", variant: "secondary" },
     };
+    const itemsSubtotal = items.reduce((total: number, item: any) => total + (Number(item.subtotal) || 0), 0);
+    const deliveryFee = Math.max(0, Number(order.total_amount) - itemsSubtotal);
 
     function handleStatusChange(status: string) {
         const formData = new FormData();
@@ -326,6 +328,12 @@ export default function AdminOrderDetailPage() {
                                         <TableCell className="text-right font-medium">₹{item.subtotal}</TableCell>
                                     </TableRow>
                                 ))}
+                                <TableRow>
+                                    <TableCell colSpan={3} className="text-right font-medium">배달비</TableCell>
+                                    <TableCell className="text-right font-medium">
+                                        {deliveryFee > 0 ? `₹${deliveryFee}` : "무료"}
+                                    </TableCell>
+                                </TableRow>
                                 <TableRow>
                                     <TableCell colSpan={3} className="text-right font-bold">총액</TableCell>
                                     <TableCell className="text-right font-bold text-lg">₹{order.total_amount}</TableCell>

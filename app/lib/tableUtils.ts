@@ -4,45 +4,7 @@ import { z } from "zod";
 // Type Definitions
 // ============================================================================
 
-export interface OrderItem {
-  quantity: number;
-  product_id: string;
-  products: {
-    name_ko?: string;
-    name?: string;
-  };
-}
-
-export interface Order {
-  id: string;
-  order_number: string;
-  customer_name: string;
-  phone: string;
-  delivery_date: string;
-  entry_channel: string;
-  total_amount: number;
-  status: string;
-  is_locked: boolean;
-  notes?: string;
-  created_at?: string;
-  cancelled_at?: string;
-  cancelled_reason?: string;
-  apartment_id?: string;
-  tower?: string;
-  flat_number?: string;
-  order_items: OrderItem[];
-  apartments?: {
-    name?: string;
-    name_ko?: string;
-  };
-}
-
-export interface OrderTableSettings {
-  columnVisibility: Record<string, boolean>;
-  columnOrder: string[];
-  columnSizing: Record<string, number>;
-  sorting: Array<{ id: string; desc: boolean }>;
-}
+import { type Order, type OrderTableSettings } from "@/models";
 
 // ============================================================================
 // Constants

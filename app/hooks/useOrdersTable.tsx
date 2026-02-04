@@ -15,9 +15,8 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { type Order, type OrderTableSettings } from "@/models";
 import {
-  type Order,
-  type OrderTableSettings,
   COLUMN_IDS,
   getOrderSummary,
 } from "@/lib/tableUtils";

@@ -12,10 +12,15 @@ export default function OrderCompletePage() {
     const [orderData, setOrderData] = useState<any>(null);
     const [orderItems, setOrderItems] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         async function fetchOrder() {
-            if (!orderId) return;
+            if (!orderId) {
+                setError("Order ID is missing. (주문 정보를 찾을 수 없습니다)");
+                setLoading(false);
+                return;
+            }
 
             // Fetch order basic info
             const { data: order, error: orderError } = await supabase
@@ -24,9 +29,13 @@ export default function OrderCompletePage() {
                 .eq('id', orderId)
                 .single();
 
-            if (!orderError && order) {
-                setOrderData(order);
+            if (orderError || !order) {
+                setError("Order not found. (주문 정보를 찾을 수 없습니다)");
+                setLoading(false);
+                return;
             }
+
+            setOrderData(order);
 
             // Fetch order items with product details
             const { data: items, error: itemsError } = await supabase
@@ -42,7 +51,13 @@ export default function OrderCompletePage() {
                 `)
                 .eq('order_id', orderId);
 
-            if (!itemsError && items) {
+            if (itemsError) {
+                setError("Failed to load order items. (주문 내역을 불러오지 못했습니다)");
+                setLoading(false);
+                return;
+            }
+
+            if (items) {
                 setOrderItems(items);
             }
 
@@ -58,6 +73,26 @@ export default function OrderCompletePage() {
                 <div className="text-center">
                     <Loader2 className="h-8 w-8 animate-spin mx-auto text-slate-400" />
                 </div>
+            </PageContainer>
+        );
+    }
+
+    if (error) {
+        return (
+            <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
+                <Card className="text-center">
+                    <CardHeader>
+                        <CardTitle className="text-2xl">Unable to load order</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p className="text-muted-foreground mb-4">{error}</p>
+                    </CardContent>
+                    <CardFooter className="flex justify-center">
+                        <Button asChild variant="outline">
+                            <Link to="/order/lookup">View my order (내 주문 조회)</Link>
+                        </Button>
+                    </CardFooter>
+                </Card>
             </PageContainer>
         );
     }

@@ -54,7 +54,8 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     // Verify password
-    if (!verifyPassword(result.data.password)) {
+    const isValid = await verifyPassword(result.data.password);
+    if (!isValid) {
         return data({
             error: "비밀번호가 올바르지 않습니다"
         }, { status: 401 });

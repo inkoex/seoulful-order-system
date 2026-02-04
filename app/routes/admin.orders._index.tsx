@@ -36,6 +36,11 @@ export async function loader({ request }: Route.LoaderArgs) {
     const statusFilter = url.searchParams.get("status") || "all";
     const deliveryDateFilter = url.searchParams.get("delivery_date");
 
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(url.searchParams.get("pageSize") || "50", 10);
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
+
     // Build query
     let query = supabaseAdmin
         .from('orders')
@@ -53,7 +58,7 @@ export async function loader({ request }: Route.LoaderArgs) {
                 name,
                 name_ko
             )
-        `)
+        `, { count: 'exact' })
         .order('created_at', { ascending: false });
 
     if (statusFilter !== "all") {
@@ -64,13 +69,20 @@ export async function loader({ request }: Route.LoaderArgs) {
         query = query.eq('delivery_date', deliveryDateFilter);
     }
 
-    const { data: orders, error } = await query;
+    const { data: orders, error, count } = await query.range(from, to);
 
     if (error) {
         throw new Error('주문 목록을 불러오는데 실패했습니다');
     }
 
-    return data({ orders: orders || [], statusFilter, deliveryDateFilter });
+    return data({
+        orders: orders || [],
+        statusFilter,
+        deliveryDateFilter,
+        page,
+        pageSize,
+        totalCount: count || 0
+    });
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -128,7 +140,7 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function AdminOrdersPage() {
-    const { orders, statusFilter, deliveryDateFilter } = useLoaderData<typeof loader>();
+    const { orders, statusFilter, deliveryDateFilter, page, pageSize, totalCount } = useLoaderData<typeof loader>();
     const selectedDate = deliveryDateFilter ? parseISO(deliveryDateFilter) : undefined;
     const [expandedRows, setExpandedRows] = useState<ExpandedState>({});
     const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
@@ -266,7 +278,12 @@ export default function AdminOrdersPage() {
                             <p className="text-muted-foreground">주문 내역이 없습니다.</p>
                         </div>
                     ) : (
-                        <OrdersDataTable table={table} />
+                        <OrdersDataTable
+                            table={table}
+                            page={page}
+                            pageSize={pageSize}
+                            totalCount={totalCount}
+                        />
                     )}
                 </CardContent>
             </Card>

@@ -2,6 +2,7 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
     index("routes/_index.tsx"),
+    route("order", "routes/order._index.tsx"),
     route("order/complete", "routes/order.complete.tsx"),
     route("order/lookup", "routes/order.lookup.tsx"),
     route("order/edit/:id", "routes/order.edit.$id.tsx"),

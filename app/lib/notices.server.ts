@@ -44,9 +44,16 @@ const toNumber = (value: unknown) => {
     return Number(value);
 };
 
-export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapshot> {
-    const nowIso = now.toISOString();
+const NOTICE_SNAPSHOT_TTL_MS = 30 * 1000;
+let cachedNoticeSnapshot: { value: NoticeSnapshot; expiresAt: number } | null = null;
 
+export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapshot> {
+    const nowMs = now.getTime();
+    if (cachedNoticeSnapshot && cachedNoticeSnapshot.expiresAt > nowMs) {
+        return cachedNoticeSnapshot.value;
+    }
+
+    const nowIso = now.toISOString();
     const { data: activeNotices, error: activeError } = await supabaseAdmin
         .from("notices")
         .select("id, title, message, status, start_at, end_at, delivery_date, is_all_products, notice_products(product_id), notice_limits(id, type, product_id, max_quantity)")
@@ -67,9 +74,9 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
             .from("notices")
             .select("id", { count: "exact", head: true });
 
-        return {
+        const snapshot = {
             hasNotices: (count || 0) > 0,
-            orderingOpen: true,
+            orderingOpen: false,
             notice: null,
             targetProductIds: [],
             totals: { totalMax: null, totalUsed: 0, totalRemaining: null },
@@ -77,6 +84,8 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
             productMaxById: {},
             soldOutProductIds: [],
         };
+        cachedNoticeSnapshot = { value: snapshot, expiresAt: nowMs + NOTICE_SNAPSHOT_TTL_MS };
+        return snapshot;
     }
 
     const notice = {
@@ -117,8 +126,9 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
 
     let totalUsed = 0;
     const usedByProductId: Record<string, number> = {};
+    const shouldCheckUsage = Boolean(totalLimit) || productLimits.length > 0;
 
-    if (targetProductIds.length > 0) {
+    if (targetProductIds.length > 0 && shouldCheckUsage) {
         const { data: items, error } = await supabaseAdmin
             .from("order_items")
             .select("quantity, product_id, orders!inner(created_at, status)")
@@ -162,7 +172,7 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
         .filter(([, remaining]) => remaining <= 0)
         .map(([productId]) => productId);
 
-    return {
+    const snapshot = {
         hasNotices: true,
         orderingOpen: !isTimeClosed && !isTotalClosed,
         notice,
@@ -176,4 +186,9 @@ export async function getNoticeSnapshot(now = new Date()): Promise<NoticeSnapsho
         productMaxById,
         soldOutProductIds,
     };
+    cachedNoticeSnapshot = { value: snapshot, expiresAt: nowMs + NOTICE_SNAPSHOT_TTL_MS };
+    return snapshot;
+}
+export function invalidateNoticeSnapshot() {
+    cachedNoticeSnapshot = null;
 }

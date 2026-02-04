@@ -1,4 +1,4 @@
-import { type Order } from "@/lib/tableUtils";
+import { type Order } from "@/models";
 
 interface ExpandedOrderRowProps {
   order: Order;

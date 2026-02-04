@@ -28,11 +28,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import {
-  type OrderTableSettings,
-  COLUMN_IDS,
-  COLUMN_LABELS,
-} from "@/lib/tableUtils";
+import { type OrderTableSettings } from "@/models";
+import { COLUMN_IDS, COLUMN_LABELS } from "@/lib/tableUtils";
 
 interface ColumnSettingsSheetProps {
   open: boolean;

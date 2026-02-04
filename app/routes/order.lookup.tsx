@@ -50,7 +50,7 @@ export async function action({ request }: Route.ActionArgs) {
     // Query orders by phone
     const { data: orders, error } = await supabase
         .from('orders')
-        .select('id, order_number, delivery_date, total_amount, status')
+        .select('id, order_number, delivery_date, total_amount, status, edit_token')
         .eq('phone', result.data.phone)
         .in('status', ['received', 'ready', 'delivered', 'paid'])
         .order('delivery_date', { ascending: false });

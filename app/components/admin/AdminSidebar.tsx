@@ -21,10 +21,10 @@ import {
 const menuItems = [
   { path: "/admin/dashboard", label: "대시보드", icon: LayoutDashboard },
   { path: "/admin/orders", label: "주문 관리", icon: ShoppingCart },
+  { path: "/admin/notices", label: "공지 관리", icon: Megaphone },
   { path: "/admin/products", label: "상품 관리", icon: Package },
   { path: "/admin/categories", label: "카테고리 관리", icon: FolderOpen },
   { path: "/admin/apartments", label: "아파트 관리", icon: Building },
-  { path: "/admin/notices", label: "공지 관리", icon: Megaphone },
 ];
 
 export function AdminSidebar() {

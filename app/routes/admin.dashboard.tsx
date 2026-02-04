@@ -29,121 +29,41 @@ export async function loader({ request }: Route.LoaderArgs) {
     const summaryDate = parsedSummaryDate && isValid(parsedSummaryDate) ? parsedSummaryDate : null;
     const summaryDateKey = summaryDate ? format(summaryDate, "yyyy-MM-dd") : null;
 
-    // 1. Today's Orders
-    const todayCountPromise = supabaseAdmin
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', todayStart)
-        .lte('created_at', todayEnd);
+    // 1-5. All Stats (Consolidated into single RPC for high performance)
+    const { data: fullStats, error: fullError } = await supabaseAdmin
+        .rpc('get_dashboard_full_stats', {
+            p_today_start: todayStart,
+            p_today_end: todayEnd,
+            p_month_start: monthStart,
+            p_month_end: monthEnd,
+            p_summary_date: summaryDateKey
+        });
 
-    // 2. Monthly Revenue
-    const monthlyOrdersPromise = supabaseAdmin
-        .from('orders')
-        .select('total_amount')
-        .gte('created_at', monthStart)
-        .lte('created_at', monthEnd)
-        .neq('status', 'cancelled');
-
-    // 3. Active Products
-    const productCountPromise = supabaseAdmin
-        .from('products')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_active', true);
-
-    // 4. Total Customers (Unique phone numbers)
-    const customersPromise = supabaseAdmin
-        .from('orders')
-        .select('phone');
-
-    // 5. Daily Order Summary (by delivery date)
-    let summaryOrdersQuery = supabaseAdmin
-        .from('orders')
-        .select('status, total_amount');
-
-    if (summaryDateKey) {
-        summaryOrdersQuery = summaryOrdersQuery.eq('delivery_date', summaryDateKey);
+    if (fullError) {
+        console.error("Dashboard Full Stats Error:", fullError);
     }
 
-    let summaryItemsQuery = supabaseAdmin
-        .from('order_items')
-        .select(`
-            quantity,
-            product_id,
-            orders!inner (
-                delivery_date,
-                status
-            ),
-            products (
-                name_ko,
-                name
-            )
-        `)
-        .neq('orders.status', 'cancelled');
-
-    if (summaryDateKey) {
-        summaryItemsQuery = summaryItemsQuery.eq('orders.delivery_date', summaryDateKey);
-    }
-
-    const [
-        { count: todayCount },
-        { data: monthlyOrders },
-        { count: productCount },
-        { data: customers },
-        { data: summaryOrders },
-        { data: summaryItems },
-    ] = await Promise.all([
-        todayCountPromise,
-        monthlyOrdersPromise,
-        productCountPromise,
-        customersPromise,
-        summaryOrdersQuery,
-        summaryItemsQuery,
-    ]);
-
-    const monthlyRevenue = monthlyOrders?.reduce((acc: number, curr: any) => acc + (Number(curr.total_amount) || 0), 0) || 0;
-    const uniqueCustomers = new Set(customers?.map((c: any) => c.phone)).size;
-
-    const statusCounts: Record<string, number> = {
-        received: 0,
-        ready: 0,
-        delivered: 0,
-        paid: 0,
-        cancelled: 0,
-    };
-    let dailyRevenue = 0;
-    (summaryOrders || []).forEach((order: any) => {
-        if (typeof statusCounts[order.status] === "number") {
-            statusCounts[order.status] += 1;
-        } else {
-            statusCounts[order.status] = 1;
-        }
-
-        if (order.status !== 'cancelled') {
-            dailyRevenue += Number(order.total_amount) || 0;
-        }
-    });
-
-    const productTotalsMap = new Map<string, { name: string; quantity: number }>();
-    (summaryItems || []).forEach((item: any) => {
-        const name = item.products?.name_ko || item.products?.name || "상품";
-        const current = productTotalsMap.get(name) || { name, quantity: 0 };
-        productTotalsMap.set(name, { name, quantity: current.quantity + (Number(item.quantity) || 0) });
-    });
-    const productTotals = Array.from(productTotalsMap.values()).sort((a, b) => b.quantity - a.quantity);
+    const { stats: rpcStats, summary: rpcSummary, product_totals: productTotals } = (fullStats as any) || {};
 
     return {
         stats: {
-            todayOrders: todayCount || 0,
-            monthlyRevenue,
-            activeProducts: productCount || 0,
-            totalCustomers: uniqueCustomers
+            todayOrders: rpcStats?.today_orders || 0,
+            monthlyRevenue: Number(rpcStats?.monthly_revenue) || 0,
+            activeProducts: rpcStats?.active_products || 0,
+            totalCustomers: rpcStats?.total_customers || 0
         },
         summary: {
             date: summaryDateKey,
-            totalOrders: summaryOrders?.length || 0,
-            dailyRevenue,
-            statusCounts,
-            productTotals,
+            totalOrders: rpcSummary?.total_orders || 0,
+            dailyRevenue: Number(rpcSummary?.revenue) || 0,
+            statusCounts: {
+                received: rpcSummary?.received || 0,
+                ready: rpcSummary?.ready || 0,
+                delivered: rpcSummary?.delivered || 0,
+                paid: rpcSummary?.paid || 0,
+                cancelled: rpcSummary?.cancelled || 0,
+            },
+            productTotals: productTotals || [],
         }
     };
 }
@@ -300,7 +220,7 @@ export default function AdminDashboardPage() {
                             <p className="text-sm text-muted-foreground">해당 날짜 주문이 없습니다.</p>
                         ) : (
                             <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3">
-                                {summary.productTotals.map((item) => (
+                                {summary.productTotals.map((item: { name: string; quantity: number }) => (
                                     <div key={item.name} className="flex items-center justify-between rounded-md border p-3 text-sm">
                                         <span className="font-medium">{item.name}</span>
                                         <span>× {item.quantity}</span>
