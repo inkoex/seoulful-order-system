@@ -349,13 +349,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
     }, [watchedItems, productsById]);
 
     function onSubmit(values: OrderFormValues) {
-        // Remove items with 0 quantity (except validation handles it)
-        // Actually we keep them in values but server filters? 
-        // Logic: We must submit `items` array.
-
-        // Filter out 0 items for cleaner payload? 
-        // But index matching is important if we use field array mapping by index.
-        // Let's just submit specific product qtys.
+        // Submit form data as JSON payload
 
         const formData = new FormData();
         formData.append("payload", JSON.stringify(values));
