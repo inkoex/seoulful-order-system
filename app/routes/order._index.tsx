@@ -568,10 +568,10 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                         name={`items.${index}.quantity`}
                                         render={({ field }) => (
                                             <div className="flex items-center justify-between py-4 px-4 -mx-4 border-b border-brand-charcoal/5 last:border-b-0 hover:bg-brand-primary/5 rounded-xl transition-all duration-300 gap-2">
-                                                <div className="flex-1 min-w-0 pr-2">
-                                                    <p className="font-bold text-brand-charcoal truncate sm:whitespace-normal">{product.name}</p>
-                                                    <p className="text-xs text-brand-charcoal/50 truncate sm:whitespace-normal">{product.name_ko}</p>
-                                                    <p className="text-brand-primary font-black mt-1 text-base">₹{product.price}</p>
+                                                <div className="flex-1 min-w-0 pr-4">
+                                                    <p className="font-bold text-brand-charcoal text-base leading-tight">{product.name}</p>
+                                                    <p className="text-sm text-brand-charcoal/50 mt-0.5 leading-snug">{product.name_ko}</p>
+                                                    <p className="text-brand-primary font-black mt-2 text-base">₹{product.price}</p>
                                                     {soldOutIds.has(product.id) && (
                                                         <p className="text-xs font-bold text-red-600 mt-1">Sold out (품절)</p>
                                                     )}
