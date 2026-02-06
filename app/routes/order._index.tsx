@@ -126,16 +126,7 @@ export async function action({ request }: Route.ActionArgs) {
     const formData = await request.formData();
     // Payload parsing from JSON
 
-    // Reconstruct items from formData (since it's typically flat)
-    // But standard Form submission converts nested objects poorly unless handled.
-    // We will submit a JSON string for items or parse fields carefully.
-    // EASIER: The client side uses RHF. We can submit the whole form as JSON via useSubmit?
-    // OR: standard formData.
-    // Let's rely on `remix-hook-form` pattern or just parse the JSON payload if we send it as such.
-    // For simplicity, let's assume we submit standard form data.
-    // Zod parsing of FormData is tricky with arrays.
-    // We'll read the 'payload' field if we stringify on submit, OR parse manually.
-
+    // Parse JSON payload from form submission
     const payloadString = formData.get("payload");
     if (!payloadString || typeof payloadString !== "string") {
         return data({ error: "Invalid submission format (제출 형식이 올바르지 않습니다)" }, { status: 400 });
@@ -341,16 +332,21 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 
     const formControl = form.control as any;
     const watchedItems = useWatch({ control: form.control, name: "items" });
+    const productsById = useMemo(
+        () => new Map(products.map((product) => [product.id, product])),
+        [products]
+    );
+
     const totals = useMemo(() => {
         const itemsForCalc = (watchedItems || []).map((item: any) => {
-            const product = products.find(p => p.id === item.productId);
+            const product = productsById.get(item.productId);
             return {
                 quantity: Number(item.quantity) || 0,
                 unit_price: product?.price || 0
             };
         });
         return calculateOrderTotals(itemsForCalc as any);
-    }, [watchedItems, products]);
+    }, [watchedItems, productsById]);
 
     function onSubmit(values: OrderFormValues) {
         // Remove items with 0 quantity (except validation handles it)
