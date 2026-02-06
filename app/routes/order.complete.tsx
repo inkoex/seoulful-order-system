@@ -98,16 +98,33 @@ export default function OrderCompletePage() {
     }
 
     // Generate WhatsApp share URL
-    const whatsappUrl = orderData ? (() => {
+    const whatsappUrl = (orderData && orderItems.length > 0) ? (() => {
         const editUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/order/edit/${orderData.id}?token=${orderData.edit_token}`;
+
+        const itemsSubtotal = orderItems.reduce((total, item) => {
+            const subtotal = Number(item.subtotal);
+            if (!Number.isNaN(subtotal) && subtotal > 0) return total + subtotal;
+            const unitPrice = Number(item.unit_price) || 0;
+            const quantity = Number(item.quantity) || 0;
+            return total + unitPrice * quantity;
+        }, 0);
+        const deliveryFee = Math.max(0, Number(orderData.total_amount) - itemsSubtotal);
+
+        const itemsList = orderItems
+            .map(item => `- ${item.products?.name || item.products?.name_ko} x ${item.quantity}`)
+            .join('\n');
+
         const message = encodeURIComponent(
             `Hello! Your Seoulful order is confirmed.\n\n` +
             `📦 Order No.: ${orderData.order_number}\n` +
             `👤 Name: ${orderData.customer_name}\n` +
-            `📅 Delivery date: ${new Date(orderData.delivery_date).toLocaleDateString('en-US')}\n` +
-            `💰 Total: ₹${orderData.total_amount}\n\n` +
-            `✏️ Edit order: ${editUrl}\n\n` +
-            `⏰ Deadline: 8 PM the day before delivery`
+            `📅 Delivery date: ${new Date(orderData.delivery_date).toLocaleDateString('en-US')}\n\n` +
+            `🛒 *Order Summary*:\n${itemsList}\n\n` +
+            `------------------\n` +
+            `Subtotal: ₹${itemsSubtotal}\n` +
+            `Delivery Fee: ${deliveryFee > 0 ? `₹${deliveryFee}` : "Free"}\n` +
+            `*Total: ₹${orderData.total_amount}*\n\n` +
+            `✏️ Edit order: ${editUrl}`
         );
         return `https://wa.me/?text=${message}`;
     })() : '';

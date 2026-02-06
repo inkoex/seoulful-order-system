@@ -160,7 +160,7 @@ export async function action({ request }: Route.ActionArgs) {
     if (noticeSnapshot.notice?.delivery_date) {
         const noticeDate = noticeSnapshot.notice.delivery_date;
         const requestedDate = deliveryDate instanceof Date
-            ? deliveryDate.toISOString().slice(0, 10)
+            ? format(deliveryDate, 'yyyy-MM-dd')
             : String(deliveryDate || "");
         if (requestedDate !== noticeDate) {
             deliveryDate = parseISO(noticeDate);
@@ -483,11 +483,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                    {apartments.map((apt) => (
-                                                        <SelectItem key={apt.id} value={apt.id}>
-                                                            {apt.name}
-                                                        </SelectItem>
-                                                    ))}
+                                                {apartments.map((apt) => (
+                                                    <SelectItem key={apt.id} value={apt.id}>
+                                                        {apt.name}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
