@@ -4,6 +4,8 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Minus, Lock, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "~/components/order/QuantitySelector";
+import { OrderPriceSummary } from "~/components/order/OrderPriceSummary";
 import { formatToISODate, formatCurrency, formatDisplayDate } from "~/utils/format";
 import { calculateOrderTotals } from "~/utils/order";
 import {
@@ -504,35 +506,11 @@ export default function OrderEditPage() {
                                                                 value={product.id}
                                                             />
                                                         </div>
-                                                        <div className="flex items-center space-x-3">
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="icon"
-                                                                className="h-10 w-10 rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5 transition-all"
-                                                                onClick={() => {
-                                                                    const newValue = Math.max(0, Number(field.value) - 1);
-                                                                    field.onChange(newValue);
-                                                                }}
-                                                                disabled={isEditingDisabled || Number(field.value) <= 0}
-                                                            >
-                                                                <Minus className="h-4 w-4" />
-                                                            </Button>
-                                                            <span className="text-xl font-black text-brand-charcoal w-8 text-center">{field.value}</span>
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                size="icon"
-                                                                className="h-10 w-10 rounded-xl border-2 border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
-                                                                onClick={() => {
-                                                                    const newValue = Number(field.value) + 1;
-                                                                    field.onChange(newValue);
-                                                                }}
-                                                                disabled={isEditingDisabled}
-                                                            >
-                                                                <Plus className="h-4 w-4 text-brand-primary" />
-                                                            </Button>
-                                                        </div>
+                                                        <QuantitySelector
+                                                            value={field.value}
+                                                            onChange={field.onChange}
+                                                            disabled={isEditingDisabled}
+                                                        />
                                                     </div>
                                                 )}
                                             />
@@ -542,22 +520,12 @@ export default function OrderEditPage() {
                                                 {form.formState.errors.items.root.message}
                                             </p>
                                         )}
-                                        <div className="border-t-2 border-brand-primary/10 pt-4 space-y-3 text-sm">
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-brand-charcoal/60 font-medium">Subtotal</span>
-                                                <span className="font-bold text-brand-charcoal">₹{totalAmount}</span>
-                                            </div>
-                                            <div className="flex items-center justify-between">
-                                                <span className="text-brand-charcoal/60 font-medium">Delivery fee (₹500+ free)</span>
-                                                <span className={deliveryFee ? "font-bold text-brand-charcoal" : "text-brand-charcoal/60 font-medium"}>
-                                                    {deliveryFee ? `₹${deliveryFee}` : "Free"}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between text-lg font-black text-brand-primary pt-2 border-t border-brand-charcoal/10">
-                                                <span>Estimated total</span>
-                                                <span>₹{grandTotal}</span>
-                                            </div>
-                                        </div>
+                                        <OrderPriceSummary
+                                            subtotal={totalAmount}
+                                            deliveryFee={deliveryFee}
+                                            total={grandTotal}
+                                            subtotalLabel="Subtotal"
+                                        />
                                     </div>
                                 )}
                             </div>

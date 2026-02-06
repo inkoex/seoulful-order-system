@@ -9,6 +9,8 @@ import { CalendarIcon, Loader2, Plus, Minus, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { QuantitySelector } from "~/components/order/QuantitySelector";
+import { OrderPriceSummary } from "~/components/order/OrderPriceSummary";
 import { Calendar } from "@/components/ui/calendar";
 import {
     Form as UiForm,
@@ -577,33 +579,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                     <input type="hidden" {...form.register(`items.${index}.productId`)} value={product.id} />
                                                 </div>
                                                 <div className="flex items-center space-x-3">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-10 w-10 rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5 transition-all"
-                                                        onClick={() => {
-                                                            const val = Number(field.value);
-                                                            if (val > 0) field.onChange(val - 1);
-                                                        }}
-                                                        disabled={orderingClosed}
-                                                    >
-                                                        <Minus className="h-4 w-4" />
-                                                    </Button>
-                                                    <span className="text-xl font-black text-brand-charcoal w-8 text-center">{field.value}</span>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        className="h-10 w-10 rounded-xl border-2 border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
-                                                        onClick={() => {
-                                                            const val = Number(field.value);
-                                                            field.onChange(val + 1);
-                                                        }}
+                                                    <QuantitySelector
+                                                        value={field.value}
+                                                        onChange={field.onChange}
                                                         disabled={orderingClosed || soldOutIds.has(product.id)}
-                                                    >
-                                                        <Plus className="h-4 w-4 text-brand-primary" />
-                                                    </Button>
+                                                    />
                                                 </div>
                                             </div>
                                         )}
@@ -612,22 +592,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 {form.formState.errors.root && (
                                     <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
                                 )}
-                                <div className="border-t-2 border-brand-primary/10 pt-4 space-y-3 text-sm">
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-brand-charcoal/60 font-medium">Subtotal (선택 합계)</span>
-                                        <span className="font-bold text-brand-charcoal">₹{totalAmount}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-brand-charcoal/60 font-medium">Delivery fee (₹500+ free)</span>
-                                        <span className={deliveryFee ? "font-bold text-brand-charcoal" : "text-brand-charcoal/60 font-medium"}>
-                                            {deliveryFee ? formatCurrency(deliveryFee) : "Free"}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between text-lg font-black text-brand-primary pt-2 border-t border-brand-charcoal/10">
-                                        <span>Estimated total</span>
-                                        <span>{formatCurrency(grandTotal)}</span>
-                                    </div>
-                                </div>
+                                <OrderPriceSummary
+                                    subtotal={totalAmount}
+                                    deliveryFee={deliveryFee}
+                                    total={grandTotal}
+                                />
                             </div>
 
                             {/* Delivery Date */}
