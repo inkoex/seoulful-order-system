@@ -18,6 +18,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
+import { getNoticeSnapshot } from "@/lib/notices.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.lookup";
 
@@ -47,13 +48,17 @@ export async function action({ request }: Route.ActionArgs) {
         }, { status: 400 });
     }
 
-    // Query orders by phone
-    const { data: orders, error } = await supabase
-        .from('orders')
-        .select('id, order_number, delivery_date, total_amount, status, edit_token')
-        .eq('phone', result.data.phone)
-        .in('status', ['received', 'ready', 'delivered', 'paid'])
-        .order('delivery_date', { ascending: false });
+    const [noticeSnapshot, ordersResult] = await Promise.all([
+        getNoticeSnapshot(),
+        supabase
+            .from('orders')
+            .select('id, order_number, delivery_date, total_amount, status, edit_token, created_at')
+            .eq('phone', result.data.phone)
+            .in('status', ['received', 'ready', 'delivered', 'paid'])
+            .order('delivery_date', { ascending: false })
+    ]);
+
+    const { data: orders, error } = ordersResult;
 
     if (error) {
         return data({
@@ -62,7 +67,28 @@ export async function action({ request }: Route.ActionArgs) {
         }, { status: 500 });
     }
 
-    return data({ success: true, orders: orders || [] });
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const notice = noticeSnapshot.notice;
+    const noticeStart = notice?.start_at ? new Date(notice.start_at) : null;
+    const noticeEnd = notice?.end_at ? new Date(notice.end_at) : null;
+
+    const ordersWithEdit = (orders || []).map((order: any) => {
+        const deliveryDate = new Date(order.delivery_date);
+        deliveryDate.setHours(0, 0, 0, 0);
+        const createdAt = order.created_at ? new Date(order.created_at) : null;
+        const inNoticeWindow = Boolean(
+            noticeSnapshot.orderingOpen &&
+            noticeStart &&
+            createdAt &&
+            createdAt >= noticeStart &&
+            (!noticeEnd || createdAt <= noticeEnd)
+        );
+        const canEdit = inNoticeWindow && deliveryDate > today;
+        return { ...order, can_edit: canEdit };
+    });
+
+    return data({ success: true, orders: ordersWithEdit });
 }
 
 // --- Component ---
@@ -77,11 +103,11 @@ export default function OrderLookupPage() {
         defaultValues: { phone: "" },
     });
     const statusLabel: Record<string, string> = {
-        received: "접수됨",
-        ready: "생산 완료",
-        delivered: "배달 완료",
-        paid: "지불 완료",
-        cancelled: "취소됨",
+        received: "Received",
+        ready: "Ready",
+        delivered: "Delivered",
+        paid: "Paid",
+        cancelled: "Cancelled",
     };
     const statusClassName: Record<string, string> = {
         received: "text-yellow-600 dark:text-yellow-400",
@@ -98,15 +124,21 @@ export default function OrderLookupPage() {
     }
 
     return (
-        <PageContainer size="narrow">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl">주문 조회</CardTitle>
-                    <CardDescription>
-                        연락처를 입력하여 주문 내역을 확인하세요
-                    </CardDescription>
+        <PageContainer size="narrow" className="py-8 md:py-12">
+            <Card className="rounded-[2rem] shadow-2xl border-none bg-gradient-to-br from-white via-white to-brand-background/30">
+                <CardHeader className="space-y-4 pb-2 p-6 md:p-8">
+                    <div className="text-center space-y-3 animate-dynamic-reveal">
+                        <span className="section-label">Order lookup</span>
+                        <CardTitle className="text-3xl md:text-4xl font-black text-brand-charcoal">
+                            Find your order
+                        </CardTitle>
+                        <CardDescription className="text-lg font-light text-brand-charcoal/50">
+                            Enter your phone number to view your orders
+                        </CardDescription>
+                        <div className="mx-auto section-divider w-16 bg-brand-primary"></div>
+                    </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-6 pb-6 pt-2 md:px-8 md:pb-8 md:pt-2">
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                             <FormField
@@ -114,7 +146,7 @@ export default function OrderLookupPage() {
                                 name="phone"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>연락처 (Phone)</FormLabel>
+                                        <FormLabel>WhatsApp number</FormLabel>
                                         <FormControl>
                                             <Input
                                                 placeholder="1234567890"
@@ -124,7 +156,7 @@ export default function OrderLookupPage() {
                                             />
                                         </FormControl>
                                         <FormDescription>
-                                            주문 시 입력한 연락처 10자리를 입력해주세요
+                                            Enter the 10-digit number used for your order
                                         </FormDescription>
                                         <FormMessage />
                                     </FormItem>
@@ -137,14 +169,14 @@ export default function OrderLookupPage() {
                                 </div>
                             )}
 
-                            <Button type="submit" className="w-full" disabled={isSubmitting}>
+                            <Button type="submit" variant="premium" className="w-full h-16 text-lg font-black tracking-widest" disabled={isSubmitting}>
                                 {isSubmitting ? (
                                     <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        조회 중...
+                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        Searching...
                                     </>
                                 ) : (
-                                    "주문 조회"
+                                    "Find order"
                                 )}
                             </Button>
                         </form>
@@ -155,40 +187,40 @@ export default function OrderLookupPage() {
                         <div className="mt-8">
                             {actionData.orders.length === 0 ? (
                                 <div className="text-center py-8">
-                                    <p className="text-muted-foreground">주문 내역이 없습니다.</p>
+                                    <p className="text-brand-charcoal/60">No orders found.</p>
                                     <Button asChild className="mt-4" variant="outline">
-                                        <Link to="/">새 주문하기</Link>
+                                        <Link to="/order">Place a new order</Link>
                                     </Button>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    <h3 className="font-semibold text-lg">주문 내역</h3>
+                                    <h3 className="font-semibold text-lg text-brand-charcoal">Orders</h3>
                                     {actionData.orders.map((order: any) => (
-                                        <Card key={order.id}>
+                                        <Card key={order.id} className="border-2 border-brand-charcoal/10 rounded-2xl">
                                             <CardContent className="pt-6">
                                                 <div className="space-y-2">
                                                     <div className="flex justify-between">
-                                                        <span className="text-sm text-muted-foreground">주문번호</span>
-                                                        <span className="font-medium">{order.order_number}</span>
+                                                        <span className="text-sm text-brand-charcoal/60">Order no.</span>
+                                                        <span className="font-bold text-brand-charcoal">{order.order_number}</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-sm text-muted-foreground">배달일</span>
-                                                        <span>{new Date(order.delivery_date).toLocaleDateString('ko-KR')}</span>
+                                                        <span className="text-sm text-brand-charcoal/60">Delivery date</span>
+                                                        <span className="text-brand-charcoal">{new Date(order.delivery_date).toLocaleDateString('en-US')}</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-sm text-muted-foreground">금액</span>
-                                                        <span className="font-bold">₹{order.total_amount}</span>
+                                                        <span className="text-sm text-brand-charcoal/60">Total</span>
+                                                        <span className="font-bold text-brand-charcoal">₹{order.total_amount}</span>
                                                     </div>
                                                     <div className="flex justify-between">
-                                                        <span className="text-sm text-muted-foreground">상태</span>
-                                                        <span className={cn(statusClassName[order.status] || "text-muted-foreground")}>
+                                                        <span className="text-sm text-brand-charcoal/60">Status</span>
+                                                        <span className={cn(statusClassName[order.status] || "text-brand-charcoal/60")}>
                                                             {statusLabel[order.status] || order.status}
                                                         </span>
                                                     </div>
                                                 </div>
                                                 <Button asChild className="w-full mt-4" variant="outline">
-                                                    <Link to={`/order/edit/${order.id}?token=${order.edit_token}`}>
-                                                        주문 보기/수정
+                                                    <Link to={`/order/edit/${order.id}?token=${order.edit_token}${order.can_edit ? "" : "&mode=view"}`}>
+                                                        {order.can_edit ? "Edit order" : "View order"}
                                                     </Link>
                                                 </Button>
                                             </CardContent>

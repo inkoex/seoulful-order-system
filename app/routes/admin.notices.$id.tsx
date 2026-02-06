@@ -235,10 +235,12 @@ export default function AdminNoticeEditPage() {
     const [endOpen, setEndOpen] = useState(false);
     const [deliveryOpen, setDeliveryOpen] = useState(false);
     const [isAllProducts, setIsAllProducts] = useState<boolean>(Boolean(notice.is_all_products));
-    const [manualSelectedProductIds, setManualSelectedProductIds] = useState<string[]>(() => noticeProducts);
+    const activeProductIds = useMemo(() => products.map((p: any) => p.id), [products]);
+    const [manualSelectedProductIds, setManualSelectedProductIds] = useState<string[]>(() =>
+        noticeProducts.filter(id => activeProductIds.includes(id))
+    );
 
-    const allProductIds = useMemo(() => products.map((product: any) => product.id), [products]);
-    const effectiveSelectedIds = isAllProducts ? allProductIds : manualSelectedProductIds;
+    const effectiveSelectedIds = isAllProducts ? activeProductIds : manualSelectedProductIds;
 
     const groupedProducts = useMemo(() => {
         const groups = new Map<string, any[]>();

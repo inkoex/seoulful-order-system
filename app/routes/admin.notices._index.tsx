@@ -25,6 +25,7 @@ import {
     AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { requireAuth } from "@/lib/auth.server";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
 
@@ -57,7 +58,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
             delivery_date,
             is_all_products,
             created_at,
-            notice_products(product_id, products(name, name_ko)),
+            notice_products(product_id, products(name, name_ko, is_active)),
             notice_limits(id, type, product_id, max_quantity, products(name, name_ko))
         `)
         .order("created_at", { ascending: false });
@@ -81,6 +82,7 @@ export async function action({ request }: ActionFunctionArgs) {
             return data({ error: "공지 ID가 없습니다" }, { status: 400 });
         }
         await supabaseAdmin.from("notices").update({ status: "closed" }).eq("id", noticeId);
+        invalidateNoticeSnapshot();
         return data({ success: true });
     }
 
@@ -91,6 +93,7 @@ export async function action({ request }: ActionFunctionArgs) {
         }
         await supabaseAdmin.from("notices").update({ status: "active" }).eq("id", noticeId);
         await supabaseAdmin.from("notices").update({ status: "closed" }).neq("id", noticeId).eq("status", "active");
+        invalidateNoticeSnapshot();
         return data({ success: true });
     }
 
@@ -102,6 +105,7 @@ export async function action({ request }: ActionFunctionArgs) {
         await supabaseAdmin.from("notice_limits").delete().eq("notice_id", noticeId);
         await supabaseAdmin.from("notice_products").delete().eq("notice_id", noticeId);
         await supabaseAdmin.from("notices").delete().eq("id", noticeId);
+        invalidateNoticeSnapshot();
         return data({ success: true });
     }
 
@@ -186,10 +190,13 @@ export default function AdminNoticesPage() {
                                                         <span>전체 상품</span>
                                                     ) : (
                                                         <div className="space-y-1">
-                                                            {(notice.notice_products || []).length === 0 && <span>선택 없음</span>}
-                                                            {(notice.notice_products || []).map((item: any) => (
-                                                                <div key={item.product_id}>{item.products?.name || "-"}</div>
-                                                            ))}
+                                                            {(() => {
+                                                                const activeProducts = (notice.notice_products || []).filter((item: any) => item.products?.is_active);
+                                                                if (activeProducts.length === 0) return <span>선택 없음</span>;
+                                                                return activeProducts.map((item: any) => (
+                                                                    <div key={item.product_id}>{item.products?.name || "-"}</div>
+                                                                ));
+                                                            })()}
                                                         </div>
                                                     )}
                                                 </TableCell>

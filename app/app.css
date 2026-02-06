@@ -187,4 +187,37 @@ body {
   .mask-fade-bottom {
     mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
   }
+
+  /* Premium Form Styles */
+  .section-label {
+    @apply text-[10px] font-black tracking-[0.4em] text-brand-primary uppercase;
+  }
+
+  .section-title {
+    @apply text-3xl font-black leading-none text-brand-charcoal;
+  }
+
+  .section-divider {
+    @apply h-px w-12 bg-brand-charcoal/10 transition-all duration-500;
+  }
+
+  .input-premium {
+    @apply focus-visible:ring-brand-primary/50 focus-visible:border-brand-primary transition-all duration-300;
+  }
+}
+
+@keyframes dynamic-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-dynamic-reveal {
+  animation: dynamic-reveal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  opacity: 0;
 }

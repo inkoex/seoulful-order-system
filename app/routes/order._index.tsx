@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
     Popover,
     PopoverContent,
@@ -261,24 +262,47 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 
     if (products.length === 0) {
         return (
-            <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
-                <Card className="text-center">
-                    <CardHeader>
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-                            <XCircle className="h-10 w-10 text-red-600" />
+            <PageContainer size="narrow" className="min-h-screen flex flex-col justify-center py-12">
+                <Card className="text-center rounded-[2rem] shadow-2xl border-none bg-gradient-to-br from-white via-white to-brand-background/30">
+                    <CardHeader className="space-y-6 pb-8">
+                        {/* Premium icon with animation */}
+                        <div className="mx-auto relative animate-dynamic-reveal">
+                            <div className="h-24 w-24 rounded-full bg-brand-primary/10 flex items-center justify-center backdrop-blur-sm">
+                                <div className="h-20 w-20 rounded-full bg-brand-primary/20 flex items-center justify-center animate-pulse">
+                                    <XCircle className="h-12 w-12 text-brand-primary" strokeWidth={2.5} />
+                                </div>
+                            </div>
                         </div>
-                        <CardTitle className="text-2xl">Orders Unavailable (주문 불가)</CardTitle>
+
+                        {/* Premium typography */}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <span className="section-label">Temporarily Closed</span>
+                                <h1 className="text-3xl md:text-4xl font-black text-brand-charcoal">
+                                    Orders Unavailable
+                                </h1>
+                                <p className="text-lg font-light text-brand-charcoal/50">
+                                    주문 불가
+                                </p>
+                            </div>
+                            <div className="mx-auto section-divider w-16 bg-brand-primary"></div>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground mb-4">
+                    <CardContent className="space-y-6 pb-8">
+                        <p className="text-lg text-brand-charcoal/70 leading-relaxed max-w-md mx-auto">
                             There are no items available right now.
                             <br />
-                            Please check back later. (현재 주문 가능한 상품이 없습니다)
+                            Please check back later.
+                            <br />
+                            <span className="text-brand-charcoal/50">현재 주문 가능한 상품이 없습니다</span>
                         </p>
                     </CardContent>
-                    <CardFooter className="flex justify-center">
-                        <Button asChild variant="outline">
-                            <Link to="/order/lookup">View my order (내 주문 조회)</Link>
+                    <CardFooter className="flex justify-center pb-12">
+                        <Button asChild variant="premium" className="w-full max-w-sm mx-auto">
+                            <Link to="/order/lookup">
+                                <span>View my order</span>
+                                <span className="text-xl ml-2">→</span>
+                            </Link>
                         </Button>
                     </CardFooter>
                 </Card>
@@ -343,24 +367,47 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 
     if (orderingClosed) {
         return (
-            <PageContainer size="narrow" className="h-screen flex flex-col justify-center">
-                <Card className="text-center">
-                    <CardHeader>
-                        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
-                            <XCircle className="h-10 w-10 text-red-600" />
+            <PageContainer size="narrow" className="min-h-screen flex flex-col justify-center py-12">
+                <Card className="text-center rounded-[2rem] shadow-2xl border-none bg-gradient-to-br from-white via-white to-brand-background/30">
+                    <CardHeader className="space-y-6 pb-8">
+                        {/* Premium icon with animation */}
+                        <div className="mx-auto relative animate-dynamic-reveal">
+                            <div className="h-24 w-24 rounded-full bg-brand-primary/10 flex items-center justify-center backdrop-blur-sm">
+                                <div className="h-20 w-20 rounded-full bg-brand-primary/20 flex items-center justify-center animate-pulse">
+                                    <XCircle className="h-12 w-12 text-brand-primary" strokeWidth={2.5} />
+                                </div>
+                            </div>
                         </div>
-                        <CardTitle className="text-2xl">Orders Unavailable (주문 불가)</CardTitle>
+
+                        {/* Premium typography */}
+                        <div className="space-y-4">
+                            <div className="space-y-2">
+                                <span className="section-label">Temporarily Closed</span>
+                                <h1 className="text-3xl md:text-4xl font-black text-brand-charcoal">
+                                    Orders Unavailable
+                                </h1>
+                                <p className="text-lg font-light text-brand-charcoal/50">
+                                    주문 불가
+                                </p>
+                            </div>
+                            <div className="mx-auto section-divider w-16 bg-brand-primary"></div>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <p className="text-muted-foreground mb-4">
+                    <CardContent className="space-y-6 pb-8">
+                        <p className="text-lg text-brand-charcoal/70 leading-relaxed max-w-md mx-auto">
                             There are no items available right now.
                             <br />
-                            Please check back later. (현재 주문 가능한 상품이 없습니다)
+                            Please check back later.
+                            <br />
+                            <span className="text-brand-charcoal/50">현재 주문 가능한 상품이 없습니다</span>
                         </p>
                     </CardContent>
-                    <CardFooter className="flex justify-center">
-                        <Button asChild variant="outline">
-                            <Link to="/order/lookup">View my order (내 주문 조회)</Link>
+                    <CardFooter className="flex justify-center pb-12">
+                        <Button asChild variant="premium" className="w-full max-w-sm mx-auto">
+                            <Link to="/order/lookup">
+                                <span>View my order</span>
+                                <span className="text-xl ml-2">→</span>
+                            </Link>
                         </Button>
                     </CardFooter>
                 </Card>
@@ -369,27 +416,39 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
     }
 
     return (
-        <PageContainer size="narrow">
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-center">
+        <PageContainer size="narrow" className="py-8 md:py-12">
+            <Card className="rounded-[2rem] shadow-2xl border-none bg-gradient-to-br from-white via-white to-brand-background/30">
+                <CardHeader className="space-y-4 pb-2 p-6 md:p-8">
+                    {/* Logo with animation */}
+                    <div className="animate-dynamic-reveal flex justify-center">
                         <img
                             src="/images/seoulful-logo.png"
                             alt="Seoulful Korean Bakery by Yujin"
-                            className="h-auto w-full max-w-[280px]"
+                            className="h-auto w-full max-w-[300px]"
                         />
                     </div>
+
+                    {/* Premium section label (landing page pattern) */}
+                    <div className="text-center space-y-3 animate-dynamic-reveal [animation-delay:200ms]">
+                        <span className="section-label">Pre-order now</span>
+                        <h1 className="text-3xl md:text-4xl font-black text-brand-charcoal">
+                            Place Your Order
+                        </h1>
+                        <div className="mx-auto section-divider w-16 bg-brand-primary"></div>
+                    </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-6 md:px-8 pt-2 pb-6 md:pb-8 space-y-4">
                     {notice?.notice?.delivery_date && (
-                        <div className="mb-6 rounded-md border bg-amber-50 px-4 py-3 text-sm text-amber-900">
-                            <div className="flex flex-wrap items-baseline gap-x-2">
-                                <span className="text-sm font-semibold uppercase tracking-wide text-amber-700">Delivery Date (배송일):</span>
-                                <span className="text-sm font-semibold">
-                                    {format(new Date(`${notice.notice.delivery_date}T00:00:00`), "yyyy-MM-dd (EEE)")}
-                                </span>
+                        <div className="space-y-2">
+                            <Label>Delivery date (배송일)</Label>
+                            <div
+                                className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground opacity-70 cursor-not-allowed"
+                                aria-disabled="true"
+                            >
+                                {format(new Date(`${notice.notice.delivery_date}T00:00:00`), "yyyy-MM-dd (EEE)")}
                             </div>
-                            <div className="mt-2 flex flex-wrap gap-3 text-xs text-amber-800">
+                            {/* Temporarily hidden - can be restored later if needed */}
+                            {/* <div className="mt-2 flex flex-wrap gap-3 text-xs text-brand-charcoal/70 font-medium">
                                 {notice.totals.totalRemaining !== null && (
                                     <span>
                                         Remaining: {notice.totals.totalRemaining} / {notice.totals.totalMax}
@@ -400,7 +459,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                         Closes at {format(new Date(notice.notice.end_at), "yyyy. MM. dd. HH:mm:ss")}
                                     </span>
                                 )}
-                            </div>
+                            </div> */}
                         </div>
                     )}
                     <UiForm {...form}>
@@ -510,29 +569,30 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                             />
 
                             {/* Products */}
-                            <div className="space-y-4 border rounded-md p-4">
+                            <div className="space-y-6 border-2 border-brand-primary/10 rounded-2xl p-6 bg-gradient-to-br from-white to-brand-background/10">
                                 {products.map((product, index) => (
                                     <FormField
                                         key={product.id}
                                         control={formControl}
                                         name={`items.${index}.quantity`}
                                         render={({ field }) => (
-                                            <div className="flex items-center justify-between">
-                                                <div className="text-sm">
-                                                    <p className="font-medium">{product.name}</p>
-                                                    <p className="text-xs text-muted-foreground">{product.name_ko} - ₹{product.price}</p>
+                                            <div className="flex items-center justify-between py-4 px-4 -mx-4 border-b border-brand-charcoal/5 last:border-b-0 hover:bg-brand-primary/5 rounded-xl transition-all duration-300">
+                                                <div className="text-sm flex-1">
+                                                    <p className="font-bold text-brand-charcoal">{product.name}</p>
+                                                    <p className="text-xs text-brand-charcoal/50">{product.name_ko}</p>
+                                                    <p className="text-brand-primary font-black mt-1">₹{product.price}</p>
                                                     {soldOutIds.has(product.id) && (
-                                                        <p className="text-xs font-semibold text-red-600">Sold out (품절)</p>
+                                                        <p className="text-xs font-bold text-red-600 mt-1">Sold out (품절)</p>
                                                     )}
                                                     {/* Hidden input for productId */}
                                                     <input type="hidden" {...form.register(`items.${index}.productId`)} value={product.id} />
                                                 </div>
-                                                <div className="flex items-center space-x-2">
+                                                <div className="flex items-center space-x-3">
                                                     <Button
                                                         type="button"
                                                         variant="outline"
                                                         size="icon"
-                                                        className="h-8 w-8"
+                                                        className="h-10 w-10 rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5 transition-all"
                                                         onClick={() => {
                                                             const val = Number(field.value);
                                                             if (val > 0) field.onChange(val - 1);
@@ -541,19 +601,19 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                     >
                                                         <Minus className="h-4 w-4" />
                                                     </Button>
-                                                    <span className="w-6 text-center">{field.value}</span>
+                                                    <span className="text-xl font-black text-brand-charcoal w-8 text-center">{field.value}</span>
                                                     <Button
                                                         type="button"
                                                         variant="outline"
                                                         size="icon"
-                                                        className="h-8 w-8"
+                                                        className="h-10 w-10 rounded-xl border-2 border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
                                                         onClick={() => {
                                                             const val = Number(field.value);
                                                             field.onChange(val + 1);
                                                         }}
                                                         disabled={orderingClosed || soldOutIds.has(product.id)}
                                                     >
-                                                        <Plus className="h-4 w-4" />
+                                                        <Plus className="h-4 w-4 text-brand-primary" />
                                                     </Button>
                                                 </div>
                                             </div>
@@ -563,18 +623,18 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 {form.formState.errors.root && (
                                     <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
                                 )}
-                                <div className="border-t pt-3 space-y-2 text-sm">
+                                <div className="border-t-2 border-brand-primary/10 pt-4 space-y-3 text-sm">
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Subtotal (선택 합계)</span>
-                                        <span className="font-semibold">₹{totalAmount}</span>
+                                        <span className="text-brand-charcoal/60 font-medium">Subtotal (선택 합계)</span>
+                                        <span className="font-bold text-brand-charcoal">₹{totalAmount}</span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <span className="text-muted-foreground">Delivery fee (₹500+ free)</span>
-                                        <span className={deliveryFee ? "font-semibold" : "text-muted-foreground"}>
+                                        <span className="text-brand-charcoal/60 font-medium">Delivery fee (₹500+ free)</span>
+                                        <span className={deliveryFee ? "font-bold text-brand-charcoal" : "text-brand-charcoal/60 font-medium"}>
                                             {deliveryFee ? `₹${deliveryFee}` : "Free"}
                                         </span>
                                     </div>
-                                    <div className="flex items-center justify-between font-semibold">
+                                    <div className="flex items-center justify-between text-lg font-black text-brand-primary pt-2 border-t border-brand-charcoal/10">
                                         <span>Estimated total (예상 합계)</span>
                                         <span>₹{grandTotal}</span>
                                     </div>
@@ -708,14 +768,22 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 </div>
                             )}
 
-                            <Button type="submit" className="w-full" disabled={isSubmitting || products.length === 0 || orderingClosed}>
+                            <Button
+                                type="submit"
+                                variant="premium"
+                                className="w-full h-16 text-lg font-black tracking-widest"
+                                disabled={isSubmitting || products.length === 0 || orderingClosed}
+                            >
                                 {isSubmitting ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Placing order... (주문 접수 중...)
-                                    </>
+                                    <div className="flex items-center space-x-3">
+                                        <Loader2 className="h-6 w-6 animate-spin" />
+                                        <span>Processing your order...</span>
+                                    </div>
                                 ) : (
-                                    "Place order (주문하기)"
+                                    <div className="flex items-center justify-center space-x-3">
+                                        <span>Place Order</span>
+                                        <span className="text-2xl">→</span>
+                                    </div>
                                 )}
                             </Button>
                         </form>

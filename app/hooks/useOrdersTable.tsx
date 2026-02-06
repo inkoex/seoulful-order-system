@@ -136,7 +136,7 @@ export function useOrdersTable({
         enableResizing: true,
         enableHiding: true,
         meta: {
-          className: "hidden md:table-cell",
+          className: "",
         },
       },
       // Apartment column
@@ -152,7 +152,7 @@ export function useOrdersTable({
         enableResizing: true,
         enableHiding: true,
         meta: {
-          className: "hidden lg:table-cell",
+          className: "",
         },
       },
       // Unit number column (combining tower and flat_number)
@@ -175,7 +175,7 @@ export function useOrdersTable({
         enableResizing: true,
         enableHiding: true,
         meta: {
-          className: "hidden lg:table-cell",
+          className: "",
         },
       },
       // Order summary column
@@ -191,7 +191,7 @@ export function useOrdersTable({
         enableResizing: true,
         enableHiding: true,
         meta: {
-          className: "hidden sm:table-cell",
+          className: "",
         },
       },
       // Delivery date column
@@ -229,7 +229,7 @@ export function useOrdersTable({
         enableResizing: true,
         enableHiding: true,
         meta: {
-          className: "hidden lg:table-cell",
+          className: "",
         },
       },
       // Total amount column

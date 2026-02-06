@@ -1,30 +1,21 @@
 import { useNavigation, useActionData, useLoaderData, redirect, data, useSubmit, Link } from "react-router";
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
-import { CalendarIcon, Loader2, Plus, Minus, Lock, MessageCircle } from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import { Loader2, Plus, Minus, Lock, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import {
     Form,
     FormControl,
-    FormDescription,
     FormField,
     FormItem,
     FormLabel,
     FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabaseAdmin } from "@/lib/supabase.server";
+import { getNoticeSnapshot } from "@/lib/notices.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.edit.$id";
 
@@ -49,6 +40,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
     const orderId = params.id;
     const url = new URL(request.url);
     const token = url.searchParams.get('token');
+    const mode = url.searchParams.get('mode');
 
     if (!token) {
         return data({
@@ -56,22 +48,26 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         }, { status: 403 });
     }
 
-    // Fetch order with items
-    const { data: order, error: orderError } = await supabaseAdmin
-        .from('orders')
-        .select(`
-            *,
-            order_items (
-                id,
-                product_id,
-                quantity,
-                unit_price,
-                subtotal
-            )
-        `)
-        .eq('id', orderId)
-        .eq('edit_token', token)
-        .single();
+    const [orderResult, noticeSnapshot] = await Promise.all([
+        supabaseAdmin
+            .from('orders')
+            .select(`
+                *,
+                order_items (
+                    id,
+                    product_id,
+                    quantity,
+                    unit_price,
+                    subtotal
+                )
+            `)
+            .eq('id', orderId)
+            .eq('edit_token', token)
+            .single(),
+        getNoticeSnapshot()
+    ]);
+
+    const { data: order, error: orderError } = orderResult;
 
     if (orderError || !order) {
         return data({
@@ -90,7 +86,9 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         order,
         products: products || [],
         isLocked: order.is_locked,
-        token
+        token,
+        noticeSnapshot,
+        mode
     };
 }
 
@@ -110,10 +108,15 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
     const token = payload.token;
 
+    const noticeSnapshot = await getNoticeSnapshot();
+    if (!noticeSnapshot.orderingOpen) {
+        return data({ error: "현재 주문 기간이 아닙니다. WhatsApp으로 문의해주세요." }, { status: 400 });
+    }
+
     // Validate token
     const { data: existingOrder, error: fetchError } = await supabaseAdmin
         .from('orders')
-        .select('edit_token, is_locked, delivery_date, order_items(product_id, quantity), notes')
+        .select('edit_token, is_locked, delivery_date, created_at, order_items(product_id, quantity), notes')
         .eq('id', orderId)
         .eq('edit_token', token)
         .single();
@@ -130,12 +133,32 @@ export async function action({ request, params }: Route.ActionArgs) {
 
     // Validate delivery date hasn't passed
     const deliveryDate = new Date(existingOrder.delivery_date);
+    deliveryDate.setHours(0, 0, 0, 0);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    if (deliveryDate < today) {
+    if (deliveryDate <= today) {
         return data({
             error: "배달일이 지난 주문은 수정할 수 없습니다."
+        }, { status: 400 });
+    }
+
+    const notice = noticeSnapshot.notice;
+    const noticeStart = notice?.start_at ? new Date(notice.start_at) : null;
+    const noticeEnd = notice?.end_at ? new Date(notice.end_at) : null;
+    const orderCreatedAt = existingOrder.created_at ? new Date(existingOrder.created_at) : null;
+
+    const isWithinNoticeWindow = Boolean(
+        noticeSnapshot.orderingOpen &&
+        noticeStart &&
+        orderCreatedAt &&
+        orderCreatedAt >= noticeStart &&
+        (!noticeEnd || orderCreatedAt <= noticeEnd)
+    );
+
+    if (!isWithinNoticeWindow) {
+        return data({
+            error: "이 주문은 이전 공지에 해당되어 수정할 수 없습니다."
         }, { status: 400 });
     }
 
@@ -293,17 +316,21 @@ export default function OrderEditPage() {
         );
     }
 
-    const { order, products, isLocked, token } = loaderData;
+    const { order, products, isLocked, token, noticeSnapshot, mode } = loaderData;
+    const isNoticeClosed = !noticeSnapshot?.orderingOpen;
+    const isViewMode = mode === "view";
 
     // Map existing order items to form format
     const existingItemsMap = new Map(
         order.order_items.map((item: any) => [item.product_id, item.quantity])
     );
 
+    const editableProducts = products.filter((product: any) => existingItemsMap.has(product.id));
+
     const form = useForm<EditFormValues>({
         resolver: zodResolver(editSchema),
         defaultValues: {
-            items: products.map((p: any) => ({
+            items: editableProducts.map((p: any) => ({
                 productId: p.id,
                 quantity: Number(existingItemsMap.get(p.id) || 0)
             })),
@@ -313,39 +340,93 @@ export default function OrderEditPage() {
         } as EditFormValues,
     });
 
+    const watchedItems = useWatch({ control: form.control, name: "items" });
+    const productsById = new Map(products.map((product: any) => [product.id, product]));
+    const totalAmount = (watchedItems || []).reduce((total, item) => {
+        const product = productsById.get(item.productId);
+        const price = product?.price || 0;
+        const quantity = Number(item.quantity) || 0;
+        return total + price * quantity;
+    }, 0);
+    const deliveryFee = totalAmount > 0 && totalAmount < 500 ? 30 : 0;
+    const grandTotal = totalAmount + deliveryFee;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deliveryDate = new Date(order.delivery_date);
+    deliveryDate.setHours(0, 0, 0, 0);
+
+    const notice = noticeSnapshot?.notice;
+    const noticeStart = notice?.start_at ? new Date(notice.start_at) : null;
+    const noticeEnd = notice?.end_at ? new Date(notice.end_at) : null;
+    const orderCreatedAt = order.created_at ? new Date(order.created_at) : null;
+    const isWithinNoticeWindow = Boolean(
+        noticeSnapshot?.orderingOpen &&
+        noticeStart &&
+        orderCreatedAt &&
+        orderCreatedAt >= noticeStart &&
+        (!noticeEnd || orderCreatedAt <= noticeEnd)
+    );
+
+    const isDeliveryDay = deliveryDate <= today;
+    const isEditingDisabled = isViewMode || isLocked || isNoticeClosed || !isWithinNoticeWindow || isDeliveryDay;
+
     function onSubmit(values: EditFormValues) {
         const formData = new FormData();
-        formData.append("payload", JSON.stringify(values));
+        const payload: EditFormValues = {
+            ...values,
+            delivery_date: new Date(order.delivery_date)
+        };
+        formData.append("payload", JSON.stringify(payload));
         submit(formData, { method: "post" });
     }
 
     return (
-        <PageContainer size="narrow">
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-2xl">주문 수정</CardTitle>
-                    <CardDescription>
-                        주문 내용을 변경하실 수 있습니다
-                    </CardDescription>
+        <PageContainer size="narrow" className="py-8 md:py-12">
+            <Card className="rounded-[2rem] shadow-2xl border-none bg-gradient-to-br from-white via-white to-brand-background/30">
+                <CardHeader className="space-y-3 pb-2 p-6 md:p-8">
+                    <div className="text-center space-y-3 animate-dynamic-reveal">
+                        <span className="section-label">Edit order</span>
+                        <CardTitle className="text-3xl md:text-4xl font-black text-brand-charcoal">
+                            Edit Order
+                        </CardTitle>
+                        <CardDescription className="text-lg font-light text-brand-charcoal/50">
+                            You can update your order details
+                        </CardDescription>
+                        <div className="mx-auto section-divider w-16 bg-brand-primary"></div>
+                    </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="px-6 pb-6 pt-2 md:px-8 md:pb-8 md:pt-2 space-y-4">
                     {/* Locked Banner */}
-                    {isLocked && (
-                        <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-950 border-2 border-amber-200 dark:border-amber-800 rounded-lg">
-                            <div className="flex items-start space-x-3">
-                                <Lock className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5" />
+                    {isEditingDisabled && (
+                        <div className="mb-8 p-6 bg-gradient-to-br from-brand-charcoal/5 to-brand-charcoal/10 border-2 border-brand-charcoal/20 rounded-2xl animate-dynamic-reveal">
+                            <div className="flex items-start space-x-4">
+                                <div className="h-12 w-12 rounded-full bg-brand-charcoal/10 flex items-center justify-center flex-shrink-0">
+                                    <Lock className="h-6 w-6 text-brand-charcoal/70" strokeWidth={2.5} />
+                                </div>
                                 <div className="flex-1">
-                                    <p className="font-medium text-amber-800 dark:text-amber-200">
-                                        마감된 주문입니다
+                                    <p className="font-black text-brand-charcoal text-lg tracking-wide">
+                                        {isLocked
+                                            ? "Order is locked"
+                                            : isDeliveryDay
+                                                ? "Edits are closed on delivery day"
+                                                : !isWithinNoticeWindow
+                                                    ? "This order is view-only"
+                                                    : "Order edits are currently unavailable"}
                                     </p>
-                                    <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                                        이 주문은 마감되어 수정할 수 없습니다.
-                                        변경이 필요하시면 WhatsApp으로 연락주세요.
+                                    <p className="text-sm text-brand-charcoal/70 mt-2 leading-relaxed">
+                                        {isLocked
+                                            ? "This order is locked and cannot be edited. Please contact us via WhatsApp if you need changes."
+                                            : isDeliveryDay
+                                                ? "Edits are disabled on the delivery date. Please contact us via WhatsApp if you need changes."
+                                                : !isWithinNoticeWindow
+                                                    ? "This order belongs to a previous notice and cannot be edited."
+                                                    : "There is no active notice, so order edits are disabled. Please contact us via WhatsApp if you need changes."}
                                     </p>
-                                    <Button asChild variant="outline" className="mt-3" size="sm">
+                                    <Button asChild variant="outline" className="mt-4 rounded-xl border-2 border-brand-charcoal/20 hover:border-brand-primary hover:bg-brand-primary/5" size="sm">
                                         <a href="https://wa.me/" target="_blank" rel="noopener noreferrer">
                                             <MessageCircle className="mr-2 h-4 w-4" />
-                                            WhatsApp으로 문의
+                                            Contact via WhatsApp
                                         </a>
                                     </Button>
                                 </div>
@@ -354,33 +435,37 @@ export default function OrderEditPage() {
                     )}
 
                     {/* Customer Info (Read-only) */}
-                    <Card className="mb-6 bg-white border-slate-200">
-                        <CardHeader>
-                            <CardTitle className="text-lg">주문 정보</CardTitle>
-                            <CardDescription>변경할 수 없는 정보입니다</CardDescription>
+                    <Card className="mb-4 border-2 border-brand-charcoal/10 rounded-2xl bg-white">
+                        <CardHeader className="pb-3">
+                            <CardTitle className="text-lg">Order details</CardTitle>
+                            <CardDescription>These details cannot be changed</CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-2 text-sm">
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">주문번호</span>
-                                <span className="font-medium">{order.order_number}</span>
+                                <span className="text-brand-charcoal/60 font-medium">Order no.</span>
+                                <span className="font-bold text-brand-charcoal">{order.order_number}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">고객명</span>
-                                <span>{order.customer_name}</span>
+                                <span className="text-brand-charcoal/60 font-medium">Name</span>
+                                <span className="text-brand-charcoal">{order.customer_name}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">연락처</span>
-                                <span>{order.phone}</span>
+                                <span className="text-brand-charcoal/60 font-medium">Contact</span>
+                                <span className="text-brand-charcoal">{order.phone}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">배달 주소</span>
-                                <span>{order.apartment} - {order.tower}동 {order.flat_number}호</span>
+                                <span className="text-brand-charcoal/60 font-medium">Delivery address</span>
+                                <span className="text-brand-charcoal">{order.apartment} - {order.tower} {order.flat_number}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-muted-foreground">결제 방식</span>
-                                <span>
+                                <span className="text-brand-charcoal/60 font-medium">Delivery date</span>
+                                <span className="text-brand-charcoal">{new Date(order.delivery_date).toLocaleDateString('ko-KR')}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-brand-charcoal/60 font-medium">Payment</span>
+                                <span className="text-brand-charcoal">
                                     {order.payment_method === 'upi' ? 'UPI' :
-                                        order.payment_method === 'cash' ? '현금' : '기타'}
+                                        order.payment_method === 'cash' ? 'Cash' : 'Other'}
                                 </span>
                             </div>
                         </CardContent>
@@ -391,102 +476,85 @@ export default function OrderEditPage() {
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                             {/* Products */}
                             <div className="space-y-4">
-                                <h3 className="font-semibold">상품 선택</h3>
-                                {products.map((product: any, index: number) => (
-                                    <FormField
-                                        key={product.id}
-                                        control={form.control}
-                                        name={`items.${index}.quantity`}
-                                        render={({ field }) => (
-                                            <div className="flex items-center justify-between p-3 border rounded-md">
-                                                <div>
-                                                    <p className="font-medium">{product.name_ko}</p>
-                                                    <p className="text-sm text-muted-foreground">₹{product.price}</p>
-                                                    <input
-                                                        type="hidden"
-                                                        {...form.register(`items.${index}.productId`)}
-                                                        value={product.id}
-                                                    />
-                                                </div>
-                                                <div className="flex items-center space-x-2">
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => {
-                                                            const newValue = Math.max(0, Number(field.value) - 1);
-                                                            field.onChange(newValue);
-                                                        }}
-                                                        disabled={isLocked || Number(field.value) <= 0}
-                                                    >
-                                                        <Minus className="h-4 w-4" />
-                                                    </Button>
-                                                    <span className="w-12 text-center font-medium">{field.value}</span>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="icon"
-                                                        onClick={() => {
-                                                            const newValue = Number(field.value) + 1;
-                                                            field.onChange(newValue);
-                                                        }}
-                                                        disabled={isLocked}
-                                                    >
-                                                        <Plus className="h-4 w-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
+                                <h3 className="font-semibold text-brand-charcoal">Items</h3>
+                                {editableProducts.length === 0 ? (
+                                    <p className="text-sm text-brand-charcoal/60">There are no editable items.</p>
+                                ) : (
+                                    <div className="space-y-4 border-2 border-brand-primary/10 rounded-2xl p-6 bg-gradient-to-br from-white to-brand-background/10">
+                                        {editableProducts.map((product: any, index: number) => (
+                                            <FormField
+                                                key={product.id}
+                                                control={form.control}
+                                                name={`items.${index}.quantity`}
+                                                render={({ field }) => (
+                                                    <div className="flex items-center justify-between py-4 px-4 -mx-4 border-b border-brand-charcoal/5 last:border-b-0 hover:bg-brand-primary/5 rounded-xl transition-all duration-300">
+                                                        <div className="text-sm flex-1">
+                                                            <p className="font-bold text-brand-charcoal">{product.name}</p>
+                                                            <p className="text-xs text-brand-charcoal/50">{product.name_ko}</p>
+                                                            <p className="text-brand-primary font-black mt-1">₹{product.price}</p>
+                                                            <input
+                                                                type="hidden"
+                                                                {...form.register(`items.${index}.productId`)}
+                                                                value={product.id}
+                                                            />
+                                                        </div>
+                                                        <div className="flex items-center space-x-3">
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-10 w-10 rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5 transition-all"
+                                                                onClick={() => {
+                                                                    const newValue = Math.max(0, Number(field.value) - 1);
+                                                                    field.onChange(newValue);
+                                                                }}
+                                                                disabled={isEditingDisabled || Number(field.value) <= 0}
+                                                            >
+                                                                <Minus className="h-4 w-4" />
+                                                            </Button>
+                                                            <span className="text-xl font-black text-brand-charcoal w-8 text-center">{field.value}</span>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-10 w-10 rounded-xl border-2 border-brand-primary/30 bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
+                                                                onClick={() => {
+                                                                    const newValue = Number(field.value) + 1;
+                                                                    field.onChange(newValue);
+                                                                }}
+                                                                disabled={isEditingDisabled}
+                                                            >
+                                                                <Plus className="h-4 w-4 text-brand-primary" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            />
+                                        ))}
+                                        {form.formState.errors.items?.root && (
+                                            <p className="text-sm font-medium text-destructive">
+                                                {form.formState.errors.items.root.message}
+                                            </p>
                                         )}
-                                    />
-                                ))}
-                                {form.formState.errors.items?.root && (
-                                    <p className="text-sm text-destructive">
-                                        {form.formState.errors.items.root.message}
-                                    </p>
+                                        <div className="border-t-2 border-brand-primary/10 pt-4 space-y-3 text-sm">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-brand-charcoal/60 font-medium">Subtotal</span>
+                                                <span className="font-bold text-brand-charcoal">₹{totalAmount}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-brand-charcoal/60 font-medium">Delivery fee (₹500+ free)</span>
+                                                <span className={deliveryFee ? "font-bold text-brand-charcoal" : "text-brand-charcoal/60 font-medium"}>
+                                                    {deliveryFee ? `₹${deliveryFee}` : "Free"}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between text-lg font-black text-brand-primary pt-2 border-t border-brand-charcoal/10">
+                                                <span>Estimated total</span>
+                                                <span>₹{grandTotal}</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-
-                            {/* Delivery Date */}
-                            <FormField
-                                control={form.control}
-                                name="delivery_date"
-                                render={({ field }) => (
-                                    <FormItem className="flex flex-col">
-                                        <FormLabel>배달 날짜</FormLabel>
-                                        <Popover>
-                                            <PopoverTrigger asChild>
-                                                <FormControl>
-                                                    <Button
-                                                        variant="outline"
-                                                        className={cn(
-                                                            "w-full justify-start text-left font-normal",
-                                                            !field.value && "text-muted-foreground"
-                                                        )}
-                                                        disabled={isLocked}
-                                                    >
-                                                        <CalendarIcon className="mr-2 h-4 w-4" />
-                                                        {field.value ? (
-                                                            format(field.value, "PPP")
-                                                        ) : (
-                                                            <span>날짜를 선택하세요</span>
-                                                        )}
-                                                    </Button>
-                                                </FormControl>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-0" align="start">
-                                                <Calendar
-                                                    mode="single"
-                                                    selected={field.value}
-                                                    onSelect={field.onChange}
-                                                    disabled={(date) => date < new Date()}
-                                                    initialFocus
-                                                />
-                                            </PopoverContent>
-                                        </Popover>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
 
                             {/* Notes */}
                             <FormField
@@ -494,14 +562,14 @@ export default function OrderEditPage() {
                                 name="notes"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>요청사항 (Optional)</FormLabel>
-                                        <FormControl>
-                                            <Textarea
-                                                placeholder="배송 시 요청사항을 입력해주세요"
-                                                className="resize-none"
-                                                {...field}
-                                                disabled={isLocked}
-                                            />
+                                    <FormLabel>Notes (optional)</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Add delivery notes"
+                                            className="resize-none"
+                                            {...field}
+                                                disabled={isEditingDisabled}
+                                        />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -514,14 +582,14 @@ export default function OrderEditPage() {
                                 </div>
                             )}
 
-                            <Button type="submit" className="w-full" disabled={isSubmitting || isLocked}>
+                            <Button type="submit" variant="premium" className="w-full h-16 text-lg font-black tracking-widest" disabled={isSubmitting || isEditingDisabled}>
                                 {isSubmitting ? (
                                     <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        저장 중...
+                                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                                        Saving...
                                     </>
                                 ) : (
-                                    "수정 완료"
+                                    isEditingDisabled ? "View only" : "Save changes"
                                 )}
                             </Button>
                         </form>
