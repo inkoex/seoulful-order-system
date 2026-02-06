@@ -91,21 +91,26 @@ export default function OrderCompletePage() {
         const itemsList = items
             .map(item => {
                 const product = Array.isArray(item.products) ? item.products[0] : item.products;
-                return `- ${product?.name || product?.name_ko || 'Product'} x ${item.quantity}`;
+                return `• ${product?.name || product?.name_ko || 'Product'} × ${item.quantity}`;
             })
             .join('\n');
 
+        const deliveryFeeDisplay = totals.deliveryFee > 0 ? `₹${totals.deliveryFee}` : "Free";
+
         const message = encodeURIComponent(
-            `Hi ${order.customer_name}, we've received your Seoulful order! ❤️\n` +
-            `We're so excited to prepare this for you and will have it delivered on ${formatDisplayDate(order.delivery_date)}. ✨\n\n` +
-            `🛒 *Order Summary*:\n${itemsList}\n` +
-            `------------------\n` +
-            `Subtotal: ${formatCurrency(totals.subtotal)}\n` +
-            `Delivery Fee: ${totals.deliveryFee > 0 ? formatCurrency(totals.deliveryFee) : "Free"}\n` +
-            `*Grand Total: ${formatCurrency(order.total_amount)}*\n\n` +
-            `📦 Order No: ${order.order_number}\n` +
-            `✏️ Need a change? Edit here: ${editUrl}\n\n` +
-            `Bringing a touch of Seoul to your table with love. See you soon! 😊`
+            `Hi ${order.customer_name},\n\n` +
+            `Thank you for your Seoulful order 🤍\n` +
+            `We’ll freshly prepare everything for delivery on ${formatDisplayDate(order.delivery_date)}.\n\n` +
+            `🛒 Order Summary\n` +
+            `${itemsList}\n\n` +
+            `Subtotal: ₹${totals.subtotal}\n` +
+            `Delivery: ${deliveryFeeDisplay}\n` +
+            `Total: ₹${order.total_amount}\n\n` +
+            `📦 Order No: ${order.order_number}\n\n` +
+            `Need to make a change?\n` +
+            `Edit here: ${editUrl}\n\n` +
+            `Bringing a touch of Seoul to your table.\n` +
+            `See you soon.`
         );
         return `https://wa.me/?text=${message}`;
     })();
