@@ -1,9 +1,9 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
-import { Link, Form, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit, Await } from "react-router";
+import { Link, Form, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
 import { z } from "zod";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { format, addDays } from "date-fns";
+import { format, addDays, parseISO } from "date-fns";
 import { CalendarIcon, Loader2, Plus, Minus, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -85,8 +85,8 @@ export async function loader() {
         getNoticeSnapshot()
     ]);
 
-    // Fetch apartments as a promise for streaming (deferred)
-    const apartmentsPromise = getOrSetCache('order-apartments', async () => {
+    // Fetch apartments synchronously for stability (especially mobile hydration)
+    const apartments = await getOrSetCache('order-apartments', async () => {
         const { data } = await supabase
             .from('apartments')
             .select('id, name, name_ko, sort_order')
@@ -112,7 +112,7 @@ export async function loader() {
 
     return {
         products: visibleProducts,
-        apartments: apartmentsPromise, // Streamed
+        apartments,
         notice: noticeSnapshot
     };
 }
@@ -256,7 +256,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
     };
     const orderingClosed = !notice?.orderingOpen;
     const noticeDeliveryDate = notice?.notice?.delivery_date;
-    const fixedDeliveryDate = noticeDeliveryDate ? new Date(`${noticeDeliveryDate}T00:00:00`) : undefined;
+    const fixedDeliveryDate = noticeDeliveryDate ? parseISO(noticeDeliveryDate) : undefined;
     const isDeliveryLocked = Boolean(noticeDeliveryDate);
     const soldOutIds = useMemo(() => new Set(notice?.soldOutProductIds || []), [notice?.soldOutProductIds]);
 
@@ -445,7 +445,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 className="flex h-10 w-full items-center rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground opacity-70 cursor-not-allowed"
                                 aria-disabled="true"
                             >
-                                {format(new Date(`${notice.notice.delivery_date}T00:00:00`), "yyyy-MM-dd (EEE)")}
+                                {format(parseISO(notice.notice.delivery_date), "yyyy-MM-dd (EEE)")}
                             </div>
                             {/* Temporarily hidden - can be restored later if needed */}
                             {/* <div className="mt-2 flex flex-wrap gap-3 text-xs text-brand-charcoal/70 font-medium">
@@ -472,32 +472,18 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 render={({ field }) => (
                                     <FormItem>
                                         <FormLabel>Apartment (아파트)</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <Select onValueChange={field.onChange} value={field.value || ""}>
                                             <FormControl>
                                                 <SelectTrigger>
                                                     <SelectValue placeholder="Select an apartment (아파트 선택)" />
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                <Suspense fallback={
-                                                    <div className="p-2 space-y-2">
-                                                        <div className="h-4 w-3/4 animate-pulse rounded bg-muted" />
-                                                        <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-                                                        <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                                                    </div>
-                                                }>
-                                                    <Await resolve={apartments}>
-                                                        {(resolvedApartments: any[]) => (
-                                                            <>
-                                                                {resolvedApartments.map((apt) => (
-                                                                    <SelectItem key={apt.id} value={apt.id}>
-                                                                        {apt.name_ko} ({apt.name})
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </>
-                                                        )}
-                                                    </Await>
-                                                </Suspense>
+                                                {apartments.map((apt) => (
+                                                    <SelectItem key={apt.id} value={apt.id}>
+                                                        {apt.name_ko} ({apt.name})
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
