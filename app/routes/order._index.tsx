@@ -479,11 +479,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                 </SelectTrigger>
                                             </FormControl>
                                             <SelectContent>
-                                                {apartments.map((apt) => (
-                                                    <SelectItem key={apt.id} value={apt.id}>
-                                                        {apt.name_ko} ({apt.name})
-                                                    </SelectItem>
-                                                ))}
+                                                    {apartments.map((apt) => (
+                                                        <SelectItem key={apt.id} value={apt.id}>
+                                                            {apt.name}
+                                                        </SelectItem>
+                                                    ))}
                                             </SelectContent>
                                         </Select>
                                         <FormMessage />
