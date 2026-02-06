@@ -124,7 +124,7 @@ export async function loader() {
 // --- Action ---
 export async function action({ request }: Route.ActionArgs) {
     const formData = await request.formData();
-    const rawData = Object.fromEntries(formData);
+    // Payload parsing from JSON
 
     // Reconstruct items from formData (since it's typically flat)
     // But standard Form submission converts nested objects poorly unless handled.
@@ -341,11 +341,16 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
 
     const formControl = form.control as any;
     const watchedItems = useWatch({ control: form.control, name: "items" });
-    const productsById = useMemo(
-        () => new Map(products.map((product) => [product.id, product])),
-        [products]
-    );
-    // Reactivity handled in-line below
+    const totals = useMemo(() => {
+        const itemsForCalc = (watchedItems || []).map((item: any) => {
+            const product = products.find(p => p.id === item.productId);
+            return {
+                quantity: Number(item.quantity) || 0,
+                unit_price: product?.price || 0
+            };
+        });
+        return calculateOrderTotals(itemsForCalc as any);
+    }, [watchedItems, products]);
 
     function onSubmit(values: OrderFormValues) {
         // Remove items with 0 quantity (except validation handles it)
@@ -582,26 +587,15 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 ))}
 
                                 {(() => {
-                                    // Calculate using watched values directly for reactivity
-                                    const itemsForCalc = (watchedItems || []).map(item => {
-                                        const product = products.find(p => p.id === item.productId);
-                                        return {
-                                            quantity: Number(item.quantity) || 0,
-                                            unit_price: product?.price || 0
-                                        };
-                                    });
-
-                                    const { subtotal, deliveryFee, total } = calculateOrderTotals(itemsForCalc as any);
-
                                     return (
                                         <>
                                             {form.formState.errors.root && (
                                                 <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
                                             )}
                                             <OrderPriceSummary
-                                                subtotal={subtotal}
-                                                deliveryFee={deliveryFee}
-                                                total={total}
+                                                subtotal={totals.subtotal}
+                                                deliveryFee={totals.deliveryFee}
+                                                total={totals.total}
                                             />
                                         </>
                                     );

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigation, useActionData, useLoaderData, redirect, data, useSubmit, Link } from "react-router";
 import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
@@ -349,7 +350,21 @@ export default function OrderEditPage() {
     });
 
     const watchedItems = useWatch({ control: form.control, name: "items" });
-    const productsById = new Map(products.map((product: any) => [product.id, product]));
+    const productsById = useMemo(
+        () => new Map(products.map((product: any) => [product.id, product])),
+        [products]
+    );
+
+    const totals = useMemo(() => {
+        const itemsForCalc = (watchedItems || []).map((item: any) => {
+            const product = productsById.get(item.productId);
+            return {
+                quantity: Number(item.quantity) || 0,
+                unit_price: product?.price || 0
+            };
+        });
+        return calculateOrderTotals(itemsForCalc as any);
+    }, [watchedItems, productsById]);
     // Date and logic...
 
     const today = new Date();
@@ -511,17 +526,6 @@ export default function OrderEditPage() {
                                             />
                                         ))}
                                         {(() => {
-                                            // Calculate using watched values directly for reactivity
-                                            const itemsForCalc = (watchedItems || []).map(item => {
-                                                const product = productsById.get(item.productId);
-                                                return {
-                                                    quantity: Number(item.quantity) || 0,
-                                                    unit_price: product?.price || 0
-                                                };
-                                            });
-
-                                            const { subtotal, deliveryFee, total } = calculateOrderTotals(itemsForCalc as any);
-
                                             return (
                                                 <>
                                                     {form.formState.errors.items?.root && (
@@ -530,9 +534,9 @@ export default function OrderEditPage() {
                                                         </p>
                                                     )}
                                                     <OrderPriceSummary
-                                                        subtotal={subtotal}
-                                                        deliveryFee={deliveryFee}
-                                                        total={total}
+                                                        subtotal={totals.subtotal}
+                                                        deliveryFee={totals.deliveryFee}
+                                                        total={totals.total}
                                                         subtotalLabel="Subtotal"
                                                     />
                                                 </>
