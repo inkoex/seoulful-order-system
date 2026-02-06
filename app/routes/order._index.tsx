@@ -150,6 +150,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     const { items, ...orderInfo } = result.data;
+    let deliveryDate = orderInfo.delivery_date;
 
     const noticeSnapshot = await getNoticeSnapshot();
     if (!noticeSnapshot.orderingOpen) {
@@ -157,9 +158,12 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     if (noticeSnapshot.notice?.delivery_date) {
-        const requestedDate = format(orderInfo.delivery_date, "yyyy-MM-dd");
-        if (requestedDate !== noticeSnapshot.notice.delivery_date) {
-            return data({ error: "Delivery date is fixed by notice. (공지 배달일로 고정됩니다)" }, { status: 400 });
+        const noticeDate = noticeSnapshot.notice.delivery_date;
+        const requestedDate = deliveryDate instanceof Date
+            ? deliveryDate.toISOString().slice(0, 10)
+            : String(deliveryDate || "");
+        if (requestedDate !== noticeDate) {
+            deliveryDate = parseISO(noticeDate);
         }
     }
 
@@ -218,7 +222,7 @@ export async function action({ request }: Route.ActionArgs) {
             p_flat_number: orderInfo.flat_number,
             p_customer_name: orderInfo.customer_name,
             p_phone: orderInfo.phone,
-            p_delivery_date: format(orderInfo.delivery_date, 'yyyy-MM-dd'),
+            p_delivery_date: format(deliveryDate, 'yyyy-MM-dd'),
             p_payment_method: orderInfo.payment_method,
             p_notes: orderInfo.notes || '',
             p_entry_channel: orderInfo.entry_channel,
