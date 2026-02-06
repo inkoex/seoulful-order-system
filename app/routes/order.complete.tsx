@@ -90,16 +90,16 @@ export default function OrderCompletePage() {
             .join('\n');
 
         const message = encodeURIComponent(
-            `Hello! Your Seoulful order is confirmed.\n\n` +
-            `📦 Order No.: ${order.order_number}\n` +
-            `👤 Name: ${order.customer_name}\n` +
-            `📅 Delivery date: ${formatDisplayDate(order.delivery_date)}\n\n` +
-            `🛒 *Order Summary*:\n${itemsList}\n\n` +
+            `안녕하세요, ${order.customer_name}님! Seoulful을 선택해 주셔서 감사합니다. ❤️\n` +
+            `정성을 다해 준비하여 ${formatDisplayDate(order.delivery_date)}에 찾아뵐게요. ✨\n\n` +
+            `🛒 *주문 내역*:\n${itemsList}\n` +
             `------------------\n` +
-            `Subtotal: ${formatCurrency(totals.subtotal)}\n` +
-            `Delivery Fee: ${totals.deliveryFee > 0 ? formatCurrency(totals.deliveryFee) : "Free"}\n` +
-            `*Total: ${formatCurrency(order.total_amount)}*\n\n` +
-            `✏️ Edit order: ${editUrl}`
+            `소계: ${formatCurrency(totals.subtotal)}\n` +
+            `배송비: ${totals.deliveryFee > 0 ? formatCurrency(totals.deliveryFee) : "무료"}\n` +
+            `*최종합계: ${formatCurrency(order.total_amount)}*\n\n` +
+            `📦 주문번호: ${order.order_number}\n` +
+            `✏️ 주문 수정하기: ${editUrl}\n\n` +
+            `소중한 식탁에 진심을 담아 전달하겠습니다. 감사합니다! 😊`
         );
         return `https://wa.me/?text=${message}`;
     })();
