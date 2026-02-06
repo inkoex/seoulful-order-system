@@ -2,11 +2,11 @@ import { useNavigation, useActionData, useLoaderData, redirect, data, useSubmit,
 import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Lock, MessageCircle, MessageSquareText } from "lucide-react";
+import { Loader2, Lock, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "~/components/order/QuantitySelector";
 import { OrderPriceSummary } from "~/components/order/OrderPriceSummary";
-import { formatToISODate, formatDisplayDate } from "~/utils/format";
+import { formatToISODate } from "~/utils/format";
 import { calculateOrderTotals } from "~/utils/order";
 import {
     Form,
@@ -350,14 +350,7 @@ export default function OrderEditPage() {
 
     const watchedItems = useWatch({ control: form.control, name: "items" });
     const productsById = new Map(products.map((product: any) => [product.id, product]));
-    const totalAmount = (watchedItems || []).reduce((total, item) => {
-        const product = productsById.get(item.productId);
-        const price = product?.price || 0;
-        const quantity = Number(item.quantity) || 0;
-        return total + price * quantity;
-    }, 0);
-    const deliveryFee = totalAmount > 0 && totalAmount < 500 ? 30 : 0;
-    const grandTotal = totalAmount + deliveryFee;
+    // Date and logic...
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -518,9 +511,9 @@ export default function OrderEditPage() {
                                             />
                                         ))}
                                         {(() => {
-                                            const formValues = form.getValues();
-                                            const itemsForCalc = (formValues.items || []).map(item => {
-                                                const product = editableProducts.find((p: any) => p.id === item.productId);
+                                            // Calculate using watched values directly for reactivity
+                                            const itemsForCalc = (watchedItems || []).map(item => {
+                                                const product = productsById.get(item.productId);
                                                 return {
                                                     quantity: Number(item.quantity) || 0,
                                                     unit_price: product?.price || 0

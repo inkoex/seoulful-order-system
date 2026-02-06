@@ -1,12 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
 import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addDays, parseISO } from "date-fns";
-import { formatToISODate, formatCurrency, formatDisplayDate } from "~/utils/format";
+import { formatToISODate, formatDisplayDate } from "~/utils/format";
 import { calculateOrderTotals } from "~/utils/order";
-import { CalendarIcon, Loader2, MessageSquareText, XCircle } from "lucide-react";
+import { CalendarIcon, Loader2, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -345,17 +345,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
         () => new Map(products.map((product) => [product.id, product])),
         [products]
     );
-    const totalAmount = useMemo(() => {
-        if (!watchedItems) return 0;
-        return watchedItems.reduce((total, item) => {
-            const product = productsById.get(item.productId);
-            const price = product?.price || 0;
-            const quantity = Number(item.quantity) || 0;
-            return total + price * quantity;
-        }, 0);
-    }, [productsById, watchedItems]);
-    const deliveryFee = totalAmount > 0 && totalAmount < 500 ? 30 : 0;
-    const grandTotal = totalAmount + deliveryFee;
+    // Reactivity handled in-line below
 
     function onSubmit(values: OrderFormValues) {
         // Remove items with 0 quantity (except validation handles it)
@@ -592,9 +582,8 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                 ))}
 
                                 {(() => {
-                                    // Map current form values to OrderItem-like structure for totals utility
-                                    const formValues = form.getValues();
-                                    const itemsForCalc = (formValues.items || []).map(item => {
+                                    // Calculate using watched values directly for reactivity
+                                    const itemsForCalc = (watchedItems || []).map(item => {
                                         const product = products.find(p => p.id === item.productId);
                                         return {
                                             quantity: Number(item.quantity) || 0,
