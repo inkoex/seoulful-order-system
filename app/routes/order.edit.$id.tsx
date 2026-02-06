@@ -4,6 +4,8 @@ import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Minus, Lock, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatToISODate, formatCurrency, formatDisplayDate } from "~/utils/format";
+import { calculateOrderTotals } from "~/utils/order";
 import {
     Form,
     FormControl,
@@ -177,23 +179,22 @@ export async function action({ request, params }: Route.ActionArgs) {
     const { data: dbProducts } = await supabaseAdmin.from('products').select('*');
     const productMap = new Map(dbProducts?.map(p => [p.id, p]) || []);
 
-    let subtotalValue = 0;
     const activeItems = items.filter(i => i.quantity > 0);
     const orderItemsData = activeItems.map(item => {
         const product = productMap.get(item.productId);
         const unitPrice = product?.price || 0;
-        const subtotal = unitPrice * item.quantity;
-        subtotalValue += subtotal;
         return {
             product_id: item.productId,
             quantity: item.quantity,
             unit_price: unitPrice,
-            subtotal
+            subtotal: unitPrice * item.quantity
         };
     });
 
-    const deliveryFeeValue = (subtotalValue > 0 && subtotalValue < 500) ? 30 : 0;
-    const finalTotalAmount = subtotalValue + deliveryFeeValue;
+    const totals = calculateOrderTotals(orderItemsData);
+    const subtotalValue = totals.subtotal;
+    const deliveryFeeValue = totals.deliveryFee;
+    const finalTotalAmount = totals.total;
 
     // Track changes for order_history
     const changedFields: any = {};
@@ -226,7 +227,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     // Compare delivery_date
-    const newDateStr = delivery_date.toISOString().split('T')[0];
+    const newDateStr = formatToISODate(delivery_date);
     if (existingOrder.delivery_date !== newDateStr) {
         changedFields.delivery_date = {
             from: existingOrder.delivery_date,

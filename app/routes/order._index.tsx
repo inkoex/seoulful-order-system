@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addDays, parseISO } from "date-fns";
+import { formatToISODate, formatCurrency, formatDisplayDate } from "~/utils/format";
 import { CalendarIcon, Loader2, Plus, Minus, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -159,9 +160,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     if (noticeSnapshot.notice?.delivery_date) {
         const noticeDate = noticeSnapshot.notice.delivery_date;
-        const requestedDate = deliveryDate instanceof Date
-            ? format(deliveryDate, 'yyyy-MM-dd')
-            : String(deliveryDate || "");
+        const requestedDate = formatToISODate(deliveryDate);
         if (requestedDate !== noticeDate) {
             deliveryDate = parseISO(noticeDate);
         }
@@ -621,12 +620,12 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                     <div className="flex items-center justify-between">
                                         <span className="text-brand-charcoal/60 font-medium">Delivery fee (₹500+ free)</span>
                                         <span className={deliveryFee ? "font-bold text-brand-charcoal" : "text-brand-charcoal/60 font-medium"}>
-                                            {deliveryFee ? `₹${deliveryFee}` : "Free"}
+                                            {deliveryFee ? formatCurrency(deliveryFee) : "Free"}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between text-lg font-black text-brand-primary pt-2 border-t border-brand-charcoal/10">
                                         <span>Estimated total</span>
-                                        <span>₹{grandTotal}</span>
+                                        <span>{formatCurrency(grandTotal)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -641,7 +640,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                             type="hidden"
                                             name={field.name}
                                             ref={field.ref}
-                                            value={field.value ? format(field.value, "yyyy-MM-dd") : ""}
+                                            value={field.value ? formatToISODate(field.value) : ""}
                                             onChange={() => null}
                                         />
                                     )}
@@ -665,7 +664,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                                         >
                                                             <CalendarIcon className="mr-2 h-4 w-4" />
                                                             {field.value ? (
-                                                                format(field.value, "PPP")
+                                                                formatDisplayDate(field.value)
                                                             ) : (
                                                                 <span>Pick a date (날짜 선택)</span>
                                                             )}

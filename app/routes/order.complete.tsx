@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { formatDisplayDate, formatCurrency } from "~/utils/format";
+import { calculateOrderTotals } from "~/utils/order";
 import { Link, useSearchParams } from "react-router";
 import { CheckCircle2, Loader2, MessageCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -101,9 +103,7 @@ export default function OrderCompletePage() {
     const whatsappUrl = (orderData && orderItems.length > 0) ? (() => {
         const editUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/order/edit/${orderData.id}?token=${orderData.edit_token}`;
 
-        const itemsSubtotal = Number(orderData.subtotal) || 0;
-        const deliveryFee = Number(orderData.delivery_fee) || 0;
-
+        const totals = calculateOrderTotals(orderItems);
         const itemsList = orderItems
             .map(item => `- ${item.products?.name || item.products?.name_ko} x ${item.quantity}`)
             .join('\n');
@@ -112,18 +112,18 @@ export default function OrderCompletePage() {
             `Hello! Your Seoulful order is confirmed.\n\n` +
             `📦 Order No.: ${orderData.order_number}\n` +
             `👤 Name: ${orderData.customer_name}\n` +
-            `📅 Delivery date: ${new Date(orderData.delivery_date).toLocaleDateString('en-US')}\n\n` +
+            `📅 Delivery date: ${formatDisplayDate(orderData.delivery_date)}\n\n` +
             `🛒 *Order Summary*:\n${itemsList}\n\n` +
             `------------------\n` +
-            `Subtotal: ₹${itemsSubtotal}\n` +
-            `Delivery Fee: ${deliveryFee > 0 ? `₹${deliveryFee}` : "Free"}\n` +
-            `*Total: ₹${orderData.total_amount}*\n\n` +
+            `Subtotal: ${formatCurrency(totals.subtotal)}\n` +
+            `Delivery Fee: ${totals.deliveryFee > 0 ? formatCurrency(totals.deliveryFee) : "Free"}\n` +
+            `*Total: ${formatCurrency(orderData.total_amount)}*\n\n` +
             `✏️ Edit order: ${editUrl}`
         );
         return `https://wa.me/?text=${message}`;
     })() : '';
 
-    const deliveryFeeValue = orderData ? Number(orderData.delivery_fee) : 0;
+    const totals = calculateOrderTotals(orderItems);
 
     return (
         <PageContainer size="narrow" className="min-h-screen flex flex-col justify-center py-12">
@@ -184,19 +184,19 @@ export default function OrderCompletePage() {
                                     <div className="mt-4 border-t-2 border-brand-primary/10 pt-3 space-y-3 text-sm">
                                         <div className="flex justify-between">
                                             <span className="text-brand-charcoal/60 font-medium">Delivery fee</span>
-                                            <span className="font-bold text-brand-charcoal">{deliveryFeeValue > 0 ? `₹${deliveryFeeValue}` : "Free"}</span>
+                                            <span className="font-bold text-brand-charcoal">{totals.deliveryFee > 0 ? formatCurrency(totals.deliveryFee) : "Free"}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="font-black text-brand-primary">Total</span>
-                                            <span className="font-black text-brand-primary text-lg">₹{orderData.total_amount}</span>
+                                            <span className="font-black text-brand-primary">{formatCurrency(orderData.total_amount)}</span>
                                         </div>
                                     </div>
                                 </div>
                             )}
 
                             <div className="p-4 border-2 border-brand-charcoal/10 rounded-2xl text-sm flex justify-between items-center">
-                                <span className="text-brand-charcoal/60 font-medium">Delivery date</span>
-                                <span className="font-bold text-brand-charcoal">{new Date(orderData.delivery_date).toLocaleDateString('ko-KR')}</span>
+                                <span className="text-brand-charcoal/40 font-medium">Delivery date</span>
+                                <span className="font-bold text-brand-charcoal">{formatDisplayDate(orderData.delivery_date)}</span>
                             </div>
 
                         </div>
