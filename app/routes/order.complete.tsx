@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { formatDisplayDate, formatCurrency } from "~/utils/format";
 import { calculateOrderTotals } from "~/utils/order";
 import { Link, useLoaderData } from "react-router";
@@ -35,6 +34,7 @@ interface OrderData {
 export async function loader({ request }: Route.LoaderArgs) {
     const url = new URL(request.url);
     const orderId = url.searchParams.get("id");
+    const origin = url.origin;
 
     if (!orderId) {
         throw new Response("Order ID is missing", { status: 400 });
@@ -71,17 +71,13 @@ export async function loader({ request }: Route.LoaderArgs) {
 
     return {
         order: order as OrderData,
-        items: (items || []) as OrderItem[]
+        items: (items || []) as OrderItem[],
+        origin
     };
 }
 
 export default function OrderCompletePage() {
-    const { order, items } = useLoaderData<typeof loader>();
-    const [origin, setOrigin] = useState("");
-
-    useEffect(() => {
-        setOrigin(window.location.origin);
-    }, []);
+    const { order, items, origin } = useLoaderData<typeof loader>();
 
     // Generate WhatsApp share URL
     const whatsappUrl = (() => {

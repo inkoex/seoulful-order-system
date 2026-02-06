@@ -1,11 +1,12 @@
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { Link, Form, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
+import { useMemo, useState } from "react";
+import { Link, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
 import { z } from "zod";
-import { useForm, useFieldArray, useWatch } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addDays, parseISO } from "date-fns";
 import { formatToISODate, formatCurrency, formatDisplayDate } from "~/utils/format";
-import { CalendarIcon, Loader2, Plus, Minus, XCircle } from "lucide-react";
+import { calculateOrderTotals } from "~/utils/order";
+import { CalendarIcon, Loader2, MessageSquareText, XCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -589,14 +590,33 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                         )}
                                     />
                                 ))}
-                                {form.formState.errors.root && (
-                                    <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
-                                )}
-                                <OrderPriceSummary
-                                    subtotal={totalAmount}
-                                    deliveryFee={deliveryFee}
-                                    total={grandTotal}
-                                />
+
+                                {(() => {
+                                    // Map current form values to OrderItem-like structure for totals utility
+                                    const formValues = form.getValues();
+                                    const itemsForCalc = (formValues.items || []).map(item => {
+                                        const product = products.find(p => p.id === item.productId);
+                                        return {
+                                            quantity: Number(item.quantity) || 0,
+                                            unit_price: product?.price || 0
+                                        };
+                                    });
+
+                                    const { subtotal, deliveryFee, total } = calculateOrderTotals(itemsForCalc as any);
+
+                                    return (
+                                        <>
+                                            {form.formState.errors.root && (
+                                                <p className="text-sm font-medium text-destructive">{form.formState.errors.root.message}</p>
+                                            )}
+                                            <OrderPriceSummary
+                                                subtotal={subtotal}
+                                                deliveryFee={deliveryFee}
+                                                total={total}
+                                            />
+                                        </>
+                                    );
+                                })()}
                             </div>
 
                             {/* Delivery Date */}

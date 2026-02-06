@@ -2,11 +2,11 @@ import { useNavigation, useActionData, useLoaderData, redirect, data, useSubmit,
 import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Minus, Lock, MessageCircle } from "lucide-react";
+import { Loader2, Lock, MessageCircle, MessageSquareText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuantitySelector } from "~/components/order/QuantitySelector";
 import { OrderPriceSummary } from "~/components/order/OrderPriceSummary";
-import { formatToISODate, formatCurrency, formatDisplayDate } from "~/utils/format";
+import { formatToISODate, formatDisplayDate } from "~/utils/format";
 import { calculateOrderTotals } from "~/utils/order";
 import {
     Form,
@@ -517,17 +517,34 @@ export default function OrderEditPage() {
                                                 )}
                                             />
                                         ))}
-                                        {form.formState.errors.items?.root && (
-                                            <p className="text-sm font-medium text-destructive">
-                                                {form.formState.errors.items.root.message}
-                                            </p>
-                                        )}
-                                        <OrderPriceSummary
-                                            subtotal={totalAmount}
-                                            deliveryFee={deliveryFee}
-                                            total={grandTotal}
-                                            subtotalLabel="Subtotal"
-                                        />
+                                        {(() => {
+                                            const formValues = form.getValues();
+                                            const itemsForCalc = (formValues.items || []).map(item => {
+                                                const product = editableProducts.find((p: any) => p.id === item.productId);
+                                                return {
+                                                    quantity: Number(item.quantity) || 0,
+                                                    unit_price: product?.price || 0
+                                                };
+                                            });
+
+                                            const { subtotal, deliveryFee, total } = calculateOrderTotals(itemsForCalc as any);
+
+                                            return (
+                                                <>
+                                                    {form.formState.errors.items?.root && (
+                                                        <p className="text-sm font-medium text-destructive">
+                                                            {form.formState.errors.items.root.message}
+                                                        </p>
+                                                    )}
+                                                    <OrderPriceSummary
+                                                        subtotal={subtotal}
+                                                        deliveryFee={deliveryFee}
+                                                        total={total}
+                                                        subtotalLabel="Subtotal"
+                                                    />
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                             </div>
