@@ -177,13 +177,13 @@ export async function action({ request, params }: Route.ActionArgs) {
     const { data: dbProducts } = await supabaseAdmin.from('products').select('*');
     const productMap = new Map(dbProducts?.map(p => [p.id, p]) || []);
 
-    let totalAmount = 0;
+    let subtotalValue = 0;
     const activeItems = items.filter(i => i.quantity > 0);
     const orderItemsData = activeItems.map(item => {
         const product = productMap.get(item.productId);
         const unitPrice = product?.price || 0;
         const subtotal = unitPrice * item.quantity;
-        totalAmount += subtotal;
+        subtotalValue += subtotal;
         return {
             product_id: item.productId,
             quantity: item.quantity,
@@ -191,6 +191,9 @@ export async function action({ request, params }: Route.ActionArgs) {
             subtotal
         };
     });
+
+    const deliveryFeeValue = (subtotalValue > 0 && subtotalValue < 500) ? 30 : 0;
+    const finalTotalAmount = subtotalValue + deliveryFeeValue;
 
     // Track changes for order_history
     const changedFields: any = {};
@@ -245,7 +248,9 @@ export async function action({ request, params }: Route.ActionArgs) {
         .update({
             delivery_date: newDateStr,
             notes: notes || null,
-            total_amount: totalAmount,
+            subtotal: subtotalValue,
+            delivery_fee: deliveryFeeValue,
+            total_amount: finalTotalAmount,
             updated_at: new Date().toISOString()
         })
         .eq('id', orderId);
@@ -562,14 +567,14 @@ export default function OrderEditPage() {
                                 name="notes"
                                 render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Notes (optional)</FormLabel>
-                                    <FormControl>
-                                        <Textarea
-                                            placeholder="Add delivery notes"
-                                            className="resize-none"
-                                            {...field}
+                                        <FormLabel>Notes (optional)</FormLabel>
+                                        <FormControl>
+                                            <Textarea
+                                                placeholder="Add delivery notes"
+                                                className="resize-none"
+                                                {...field}
                                                 disabled={isEditingDisabled}
-                                        />
+                                            />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>

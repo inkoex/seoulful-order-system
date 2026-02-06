@@ -25,7 +25,7 @@ export default function OrderCompletePage() {
             // Fetch order basic info
             const { data: order, error: orderError } = await supabase
                 .from('orders')
-                .select('order_number, total_amount, delivery_date, customer_name, edit_token, id')
+                .select('order_number, total_amount, subtotal, delivery_fee, delivery_date, customer_name, edit_token, id')
                 .eq('id', orderId)
                 .single();
 
@@ -101,14 +101,8 @@ export default function OrderCompletePage() {
     const whatsappUrl = (orderData && orderItems.length > 0) ? (() => {
         const editUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/order/edit/${orderData.id}?token=${orderData.edit_token}`;
 
-        const itemsSubtotal = orderItems.reduce((total, item) => {
-            const subtotal = Number(item.subtotal);
-            if (!Number.isNaN(subtotal) && subtotal > 0) return total + subtotal;
-            const unitPrice = Number(item.unit_price) || 0;
-            const quantity = Number(item.quantity) || 0;
-            return total + unitPrice * quantity;
-        }, 0);
-        const deliveryFee = Math.max(0, Number(orderData.total_amount) - itemsSubtotal);
+        const itemsSubtotal = Number(orderData.subtotal) || 0;
+        const deliveryFee = Number(orderData.delivery_fee) || 0;
 
         const itemsList = orderItems
             .map(item => `- ${item.products?.name || item.products?.name_ko} x ${item.quantity}`)
@@ -129,14 +123,7 @@ export default function OrderCompletePage() {
         return `https://wa.me/?text=${message}`;
     })() : '';
 
-    const itemsSubtotal = orderItems.reduce((total, item) => {
-        const subtotal = Number(item.subtotal);
-        if (!Number.isNaN(subtotal) && subtotal > 0) return total + subtotal;
-        const unitPrice = Number(item.unit_price) || 0;
-        const quantity = Number(item.quantity) || 0;
-        return total + unitPrice * quantity;
-    }, 0);
-    const deliveryFee = orderData ? Math.max(0, Number(orderData.total_amount) - itemsSubtotal) : 0;
+    const deliveryFeeValue = orderData ? Number(orderData.delivery_fee) : 0;
 
     return (
         <PageContainer size="narrow" className="min-h-screen flex flex-col justify-center py-12">
@@ -197,7 +184,7 @@ export default function OrderCompletePage() {
                                     <div className="mt-4 border-t-2 border-brand-primary/10 pt-3 space-y-3 text-sm">
                                         <div className="flex justify-between">
                                             <span className="text-brand-charcoal/60 font-medium">Delivery fee</span>
-                                            <span className="font-bold text-brand-charcoal">{deliveryFee > 0 ? `₹${deliveryFee}` : "Free"}</span>
+                                            <span className="font-bold text-brand-charcoal">{deliveryFeeValue > 0 ? `₹${deliveryFeeValue}` : "Free"}</span>
                                         </div>
                                         <div className="flex justify-between">
                                             <span className="font-black text-brand-primary">Total</span>
