@@ -408,19 +408,19 @@ export default function OrderEditPage() {
                                     <p className="font-black text-brand-charcoal text-lg tracking-wide">
                                         {isLocked
                                             ? "Order is locked"
-                                            : isDeliveryDay
-                                                ? "Edits are closed on delivery day"
-                                                : !isWithinNoticeWindow
-                                                    ? "This order is view-only"
+                                            : !isWithinNoticeWindow
+                                                ? "This order is view-only"
+                                                : isDeliveryDay
+                                                    ? "Edits are closed on delivery day"
                                                     : "Order edits are currently unavailable"}
                                     </p>
                                     <p className="text-sm text-brand-charcoal/70 mt-2 leading-relaxed">
                                         {isLocked
                                             ? "This order is locked and cannot be edited. Please contact us via WhatsApp if you need changes."
-                                            : isDeliveryDay
-                                                ? "Edits are disabled on the delivery date. Please contact us via WhatsApp if you need changes."
-                                                : !isWithinNoticeWindow
-                                                    ? "This order belongs to a previous notice and cannot be edited."
+                                            : !isWithinNoticeWindow
+                                                ? "This order belongs to a previous notice and cannot be edited."
+                                                : isDeliveryDay
+                                                    ? "Edits are disabled on the delivery date. Please contact us via WhatsApp if you need changes."
                                                     : "There is no active notice, so order edits are disabled. Please contact us via WhatsApp if you need changes."}
                                     </p>
                                     <Button asChild variant="outline" className="mt-4 rounded-xl border-2 border-brand-charcoal/20 hover:border-brand-primary hover:bg-brand-primary/5" size="sm">
