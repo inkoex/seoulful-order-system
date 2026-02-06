@@ -495,22 +495,24 @@ export default function OrderEditPage() {
                                                 control={form.control}
                                                 name={`items.${index}.quantity`}
                                                 render={({ field }) => (
-                                                    <div className="flex items-center justify-between py-4 px-4 -mx-4 border-b border-brand-charcoal/5 last:border-b-0 hover:bg-brand-primary/5 rounded-xl transition-all duration-300">
-                                                        <div className="text-sm flex-1">
-                                                            <p className="font-bold text-brand-charcoal">{product.name}</p>
-                                                            <p className="text-xs text-brand-charcoal/50">{product.name_ko}</p>
-                                                            <p className="text-brand-primary font-black mt-1">₹{product.price}</p>
+                                                    <div className="flex items-center justify-between py-4 px-4 -mx-4 border-b border-brand-charcoal/5 last:border-b-0 hover:bg-brand-primary/5 rounded-xl transition-all duration-300 gap-2">
+                                                        <div className="flex-1 min-w-0 pr-2">
+                                                            <p className="font-bold text-brand-charcoal truncate sm:whitespace-normal">{product.name}</p>
+                                                            <p className="text-xs text-brand-charcoal/50 truncate sm:whitespace-normal">{product.name_ko}</p>
+                                                            <p className="text-brand-primary font-black mt-1 text-base">₹{product.price}</p>
                                                             <input
                                                                 type="hidden"
                                                                 {...form.register(`items.${index}.productId`)}
                                                                 value={product.id}
                                                             />
                                                         </div>
-                                                        <QuantitySelector
-                                                            value={field.value}
-                                                            onChange={field.onChange}
-                                                            disabled={isEditingDisabled}
-                                                        />
+                                                        <div className="shrink-0 flex items-center">
+                                                            <QuantitySelector
+                                                                value={field.value}
+                                                                onChange={field.onChange}
+                                                                disabled={isEditingDisabled}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 )}
                                             />
