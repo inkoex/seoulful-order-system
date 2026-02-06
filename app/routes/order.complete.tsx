@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { formatDisplayDate, formatCurrency } from "~/utils/format";
 import { calculateOrderTotals } from "~/utils/order";
 import { Link, useLoaderData } from "react-router";
@@ -76,10 +77,15 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export default function OrderCompletePage() {
     const { order, items } = useLoaderData<typeof loader>();
+    const [origin, setOrigin] = useState("");
+
+    useEffect(() => {
+        setOrigin(window.location.origin);
+    }, []);
 
     // Generate WhatsApp share URL
     const whatsappUrl = (() => {
-        const editUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/order/edit/${order.id}?token=${order.edit_token}`;
+        const editUrl = `${origin}/order/edit/${order.id}?token=${order.edit_token}`;
 
         const totals = calculateOrderTotals(items);
         const itemsList = items
