@@ -621,7 +621,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between text-lg font-black text-brand-primary pt-2 border-t border-brand-charcoal/10">
-                                        <span>Estimated total (예상 합계)</span>
+                                        <span>Estimated total</span>
                                         <span>₹{grandTotal}</span>
                                     </div>
                                 </div>
