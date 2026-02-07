@@ -233,7 +233,19 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
                                 </Button>
                               )}
 
-                              {/* Quick Action: Unlock */}
+                              {order.status === "delivered" && !order.is_locked && (
+                                <Button
+                                  variant="outline"
+                                  size="xs"
+                                  className="h-7 px-2.5 border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-[10px] font-bold"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAction("change_status", order.id, { status: "paid" });
+                                  }}
+                                >
+                                  지불 완료
+                                </Button>
+                              )}
                               {order.is_locked && (
                                 <Button
                                   variant="outline"
@@ -444,6 +456,23 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
                 >
                   <CheckSquare className="h-4 w-4 mr-2 text-blue-400" />
                   배달 완료
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white hover:bg-white/10 h-9"
+                  onClick={() => {
+                    const orderIds = table.getSelectedRowModel().rows.map(r => r.original.id);
+                    handleAction("bulk_change_status", "multiple", {
+                      status: "paid",
+                      orderIds: JSON.stringify(orderIds)
+                    });
+                    table.resetRowSelection();
+                  }}
+                >
+                  <CheckSquare className="h-4 w-4 mr-2 text-emerald-400" />
+                  지불 완료
                 </Button>
 
                 <div className="w-[1px] h-4 bg-white/20 mx-1" />
