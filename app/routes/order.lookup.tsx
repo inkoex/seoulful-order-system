@@ -50,12 +50,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     const [noticeSnapshot, ordersResult] = await Promise.all([
         getNoticeSnapshot(),
-        supabase
-            .from('orders')
-            .select('id, order_number, delivery_date, total_amount, status, edit_token, created_at')
-            .eq('phone', result.data.phone)
-            .in('status', ['received', 'ready', 'delivered', 'paid'])
-            .order('delivery_date', { ascending: false })
+        supabase.rpc('search_orders_by_phone', { p_phone: result.data.phone })
     ]);
 
     const { data: orders, error } = ordersResult;

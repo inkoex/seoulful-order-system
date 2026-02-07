@@ -34,21 +34,25 @@ FOR SELECT TO anon, authenticated
 USING (true);
 
 -- 4. ORDERS
--- Customers can view their own orders via phone number (for lookup) or edit_token (for direct view/edit)
+-- Restrict public SELECT to edit_token only.
+-- Phone-based lookup should now use the search_orders_by_phone() RPC.
+DROP POLICY IF EXISTS "Allow view by phone or token" ON public.orders;
 DROP POLICY IF EXISTS "Users can only see their own orders via phone/token" ON public.orders;
 DROP POLICY IF EXISTS "Strict access via token" ON public.orders;
 
-CREATE POLICY "Allow view by phone or token" 
+CREATE POLICY "Allow view by token" 
 ON public.orders FOR SELECT TO anon, authenticated 
-USING (true); -- We will refine this if we want strictness, but for now we need phone-based lookup to work
+USING (edit_token IS NOT NULL);
 
--- However, we should restrict UPDATE
+-- UPDATE is also restricted to token + unlocked status
+DROP POLICY IF EXISTS "Allow update by token only" ON public.orders;
 CREATE POLICY "Allow update by token only" 
 ON public.orders FOR UPDATE TO anon, authenticated 
 USING (edit_token IS NOT NULL AND is_locked = false)
 WITH CHECK (edit_token IS NOT NULL AND is_locked = false);
 
--- Disallow direct insert (must use RPC)
+-- Disallow direct insert (must use create_order_with_items RPC)
+DROP POLICY IF EXISTS "No direct insertion" ON public.orders;
 CREATE POLICY "No direct insertion" 
 ON public.orders FOR INSERT TO anon, authenticated 
 WITH CHECK (false);

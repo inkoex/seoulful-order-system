@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Link, useNavigation, useActionData, useLoaderData, redirect, data, useSubmit } from "react-router";
 import { z } from "zod";
 import { useForm, useWatch } from "react-hook-form";
@@ -274,6 +274,7 @@ export async function action({ request }: Route.ActionArgs) {
 
 // Fix action types
 type ActionResponse =
+    | { success: true; orders?: any }
     | { error: string; details?: any }
     | { duplicate: boolean; message: string }
     | undefined;
@@ -344,10 +345,15 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
     const submit = useSubmit();
     const isSubmitting = navigation.state === "submitting";
     const actionData = useActionData<typeof action>();
-    const [duplicateWarning, setDuplicateWarning] = useMemo(() => {
+    const [duplicateWarning, setDuplicateWarning] = useState<{ duplicate: boolean; message: string } | null>(null);
+
+    useEffect(() => {
         const data = actionData as any;
-        if (data?.duplicate) return data;
-        return null;
+        if (data?.duplicate) {
+            setDuplicateWarning(data);
+        } else if (data?.success || data?.error) {
+            setDuplicateWarning(null);
+        }
     }, [actionData]);
 
     // Safe cast for ActionData
