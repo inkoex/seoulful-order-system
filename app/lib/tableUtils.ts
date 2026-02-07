@@ -11,6 +11,7 @@ import { type Order, type OrderTableSettings } from "@/models";
 // ============================================================================
 
 export const COLUMN_IDS = {
+  SELECT: "select",
   EXPAND: "expand",
   ORDER_NUMBER: "orderNumber",
   CUSTOMER_NAME: "customerName",
@@ -26,6 +27,7 @@ export const COLUMN_IDS = {
 } as const;
 
 export const COLUMN_LABELS: Record<string, string> = {
+  [COLUMN_IDS.SELECT]: "선택",
   [COLUMN_IDS.EXPAND]: "확장",
   [COLUMN_IDS.ORDER_NUMBER]: "주문번호",
   [COLUMN_IDS.CUSTOMER_NAME]: "고객명",
@@ -44,6 +46,7 @@ export const TABLE_SETTINGS_STORAGE_KEY = "admin_orders_table_settings";
 
 export const DEFAULT_TABLE_SETTINGS: OrderTableSettings = {
   columnVisibility: {
+    [COLUMN_IDS.SELECT]: true,
     [COLUMN_IDS.EXPAND]: true,
     [COLUMN_IDS.ORDER_NUMBER]: true,
     [COLUMN_IDS.CUSTOMER_NAME]: true,
@@ -58,6 +61,7 @@ export const DEFAULT_TABLE_SETTINGS: OrderTableSettings = {
     [COLUMN_IDS.ACTIONS]: true,
   },
   columnOrder: [
+    COLUMN_IDS.SELECT,
     COLUMN_IDS.EXPAND,
     COLUMN_IDS.ORDER_NUMBER,
     COLUMN_IDS.CUSTOMER_NAME,
@@ -72,6 +76,7 @@ export const DEFAULT_TABLE_SETTINGS: OrderTableSettings = {
     COLUMN_IDS.ACTIONS,
   ],
   columnSizing: {
+    [COLUMN_IDS.SELECT]: 40,
     [COLUMN_IDS.EXPAND]: 40,
     [COLUMN_IDS.ORDER_NUMBER]: 150,
     [COLUMN_IDS.CUSTOMER_NAME]: 150,

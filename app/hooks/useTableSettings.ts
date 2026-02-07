@@ -32,7 +32,20 @@ export function useTableSettings() {
         const validated = parseTableSettings(stored);
 
         if (validated) {
-          setSettings(validated);
+          // Robust merge: ensure new default columns/settings are not lost
+          const merged = {
+            ...DEFAULT_TABLE_SETTINGS,
+            ...validated,
+            columnVisibility: {
+              ...DEFAULT_TABLE_SETTINGS.columnVisibility,
+              ...validated.columnVisibility
+            },
+            columnSizing: {
+              ...DEFAULT_TABLE_SETTINGS.columnSizing,
+              ...validated.columnSizing
+            }
+          };
+          setSettings(merged);
         } else {
           // Invalid data, use defaults and clear storage
           console.warn("Invalid table settings found, using defaults");

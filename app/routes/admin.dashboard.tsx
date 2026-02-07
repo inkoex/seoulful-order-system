@@ -112,47 +112,59 @@ export default function AdminDashboardPage() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                <Card>
+                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-blue-50 to-white">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">오늘 주문</CardTitle>
-                        <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-semibold text-blue-900">오늘 주문</CardTitle>
+                        <div className="p-2 bg-blue-100 rounded-lg">
+                            <ShoppingCart className="h-4 w-4 text-blue-600" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.todayOrders} 건</div>
-                        <p className="text-xs text-muted-foreground">Today's Orders</p>
+                        <div className="text-3xl font-bold text-blue-900">{stats.todayOrders} <span className="text-sm font-normal text-blue-600">건</span></div>
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-blue-400 mt-1">Today's Orders</p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-emerald-50 to-white">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">이번 달 매출</CardTitle>
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-semibold text-emerald-900">이번 달 매출</CardTitle>
+                        <div className="p-2 bg-emerald-100 rounded-lg">
+                            <TrendingUp className="h-4 w-4 text-emerald-600" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">₹{stats.monthlyRevenue.toLocaleString()}</div>
-                        <p className="text-xs text-muted-foreground">Monthly Revenue</p>
+                        <div className="text-3xl font-bold text-emerald-900">₹{stats.monthlyRevenue.toLocaleString()}</div>
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-400 mt-1">Monthly Revenue</p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-amber-50 to-white">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">판매 상품</CardTitle>
-                        <Package className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-semibold text-amber-900">판매 상품</CardTitle>
+                        <div className="p-2 bg-amber-100 rounded-lg">
+                            <Package className="h-4 w-4 text-amber-600" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.activeProducts} 종</div>
-                        <p className="text-xs text-muted-foreground">Active Products</p>
+                        <div className="text-3xl font-bold text-amber-900">{stats.activeProducts} <span className="text-sm font-normal text-amber-600">종</span></div>
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-amber-400 mt-1">Active Products</p>
                     </CardContent>
                 </Card>
 
-                <Card>
+                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-purple-50 to-white">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">총 고객수</CardTitle>
-                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <CardTitle className="text-sm font-semibold text-purple-900">총 고객수</CardTitle>
+                        <div className="p-2 bg-purple-100 rounded-lg">
+                            <Users className="h-4 w-4 text-purple-600" />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalCustomers} 명</div>
-                        <p className="text-xs text-muted-foreground">Unique Customers</p>
+                        <div className="text-3xl font-bold text-purple-900">{stats.totalCustomers} <span className="text-sm font-normal text-purple-600">명</span></div>
+                        <p className="text-[10px] uppercase tracking-wider font-semibold text-purple-400 mt-1">Unique Customers</p>
                     </CardContent>
                 </Card>
             </div>

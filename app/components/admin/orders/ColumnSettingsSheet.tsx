@@ -154,8 +154,12 @@ export function ColumnSettingsSheet({
     });
   };
 
-  // Separate locked columns (expand, actions) from draggable columns
-  const lockedColumnIds: string[] = [COLUMN_IDS.EXPAND, COLUMN_IDS.ACTIONS];
+  // Separate locked columns (select, expand, actions) from draggable columns
+  const lockedColumnIds: string[] = [
+    COLUMN_IDS.SELECT,
+    COLUMN_IDS.EXPAND,
+    COLUMN_IDS.ACTIONS,
+  ];
   const draggableColumnIds = localColumnOrder.filter(
     (id) => !lockedColumnIds.includes(id)
   );

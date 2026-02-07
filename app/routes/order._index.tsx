@@ -6,7 +6,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { format, addDays, parseISO } from "date-fns";
 import { formatToISODate, formatDisplayDate } from "~/utils/format";
 import { calculateOrderTotals } from "~/utils/order";
-import { CalendarIcon, Loader2, XCircle } from "lucide-react";
+import { CalendarIcon, Loader2, XCircle, AlertCircle } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -64,6 +75,7 @@ const orderSchema = z.object({
     payment_method: z.enum(["upi", "cash", "other"]),
     notes: z.string().optional(),
     entry_channel: z.string(),
+    confirmDuplicate: z.boolean().optional(),
 });
 
 type OrderFormValues = z.infer<typeof orderSchema>;
@@ -150,6 +162,26 @@ export async function action({ request }: Route.ActionArgs) {
     const noticeSnapshot = await getNoticeSnapshot();
     if (!noticeSnapshot.orderingOpen) {
         return data({ error: "Ordering is closed (현재 주문이 마감되었습니다)" }, { status: 400 });
+    }
+
+    // Duplicate Order Check (Phone + Delivery Date)
+    if (!payload.confirmDuplicate) {
+        const { data: existingOrders, error: checkError } = await supabase
+            .from('orders')
+            .select('id, order_number')
+            .eq('phone', result.data.phone)
+            .eq('delivery_date', format(deliveryDate, 'yyyy-MM-dd'))
+            .not('status', 'eq', 'cancelled')
+            .limit(1);
+
+        if (checkError) {
+            console.error("Duplicate check failed:", checkError);
+        } else if (existingOrders && existingOrders.length > 0) {
+            return data({
+                duplicate: true,
+                message: `An order already exists for this date with order number: ${existingOrders[0].order_number}. Do you want to place another order? (이미 해당 배송일에 접수된 주문이 있습니다 [주문번호: ${existingOrders[0].order_number}]. 새로 주문하시겠습니까?)`
+            }, { status: 409 });
+        }
     }
 
     if (noticeSnapshot.notice?.delivery_date) {
@@ -243,6 +275,7 @@ export async function action({ request }: Route.ActionArgs) {
 // Fix action types
 type ActionResponse =
     | { error: string; details?: any }
+    | { duplicate: boolean; message: string }
     | undefined;
 // --- Component ---
 export default function OrderPage({ loaderData }: Route.ComponentProps) {
@@ -311,6 +344,11 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
     const submit = useSubmit();
     const isSubmitting = navigation.state === "submitting";
     const actionData = useActionData<typeof action>();
+    const [duplicateWarning, setDuplicateWarning] = useMemo(() => {
+        const data = actionData as any;
+        if (data?.duplicate) return data;
+        return null;
+    }, [actionData]);
 
     // Safe cast for ActionData
     const errorData = actionData as ActionResponse;
@@ -553,13 +591,18 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                                         control={formControl}
                                         name={`items.${index}.quantity`}
                                         render={({ field }) => (
-                                            <div className="flex items-center justify-between py-4 px-4 -mx-4 border-b border-brand-charcoal/5 last:border-b-0 hover:bg-brand-primary/5 rounded-xl transition-all duration-300 gap-2">
+                                            <div className={cn(
+                                                "flex items-center justify-between py-4 px-4 -mx-4 border-b border-brand-charcoal/5 last:border-b-0 hover:bg-brand-primary/5 rounded-xl transition-all duration-300 gap-2",
+                                                soldOutIds.has(product.id) && "opacity-60 bg-slate-50"
+                                            )}>
                                                 <div className="flex-1 min-w-0 pr-4">
                                                     <p className="font-bold text-brand-charcoal text-base leading-tight">{product.name}</p>
                                                     <p className="text-sm text-brand-charcoal/50 mt-0.5 leading-snug">{product.name_ko}</p>
                                                     <p className="text-brand-primary font-black mt-2 text-base">₹{product.price}</p>
                                                     {soldOutIds.has(product.id) && (
-                                                        <p className="text-xs font-bold text-red-600 mt-1">Sold out (품절)</p>
+                                                        <div className="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+                                                            Sold out (품절)
+                                                        </div>
                                                     )}
                                                     {/* Hidden input for productId */}
                                                     <input type="hidden" {...form.register(`items.${index}.productId`)} value={product.id} />
@@ -712,7 +755,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                             />
 
                             {/* Server Error Message */}
-                            {errorData?.error && (
+                            {errorData && 'error' in errorData && (
                                 <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
                                     {errorData.error}
                                     {errorData.details && <pre className="text-xs pt-1">{JSON.stringify(errorData.details, null, 2)}</pre>}
@@ -741,6 +784,35 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                     </UiForm>
                 </CardContent>
             </Card>
+
+            {/* Duplicate Order Confirmation Dialog */}
+            <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => !open && window.location.reload()}>
+                <AlertDialogContent className="rounded-3xl">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="flex items-center gap-2">
+                            <AlertCircle className="h-5 w-5 text-amber-500" />
+                            <span>Confirm Duplicate Order</span>
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-brand-charcoal/70">
+                            {duplicateWarning?.message}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+                        <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={() => {
+                                const values = form.getValues();
+                                const formData = new FormData();
+                                formData.append("payload", JSON.stringify({ ...values, confirmDuplicate: true }));
+                                submit(formData, { method: "post" });
+                            }}
+                            className="bg-brand-primary text-white hover:bg-brand-primary/90 rounded-full"
+                        >
+                            Yes, proceed anyway
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </PageContainer>
     );
 }

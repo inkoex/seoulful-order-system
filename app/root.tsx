@@ -8,6 +8,7 @@ import {
   ScrollRestoration,
 } from "react-router";
 
+import { Toaster } from "./components/ui/sonner";
 import type { Route } from "./+types/root";
 import "./app.css";
 
@@ -57,6 +58,7 @@ export default function App() {
         </div>
       )}
       <Outlet />
+      <Toaster position="top-center" richColors />
     </>
   );
 }

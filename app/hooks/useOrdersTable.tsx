@@ -15,6 +15,7 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { type Order, type OrderTableSettings } from "@/models";
 import {
   COLUMN_IDS,
@@ -29,16 +30,7 @@ interface UseOrdersTableProps {
   onExpandedChange: OnChangeFn<ExpandedState>;
 }
 
-const statusStyles: Record<
-  string,
-  { label: string; className?: string; variant?: "default" | "secondary" | "outline" }
-> = {
-  received: { label: "접수됨", className: "bg-yellow-600" },
-  ready: { label: "생산 완료", className: "bg-blue-600" },
-  delivered: { label: "배달 완료", className: "bg-green-600" },
-  paid: { label: "지불 완료", className: "bg-emerald-700" },
-  cancelled: { label: "취소됨", variant: "secondary" },
-};
+import { OrderStatusBadge } from "@/components/admin/orders/OrderStatusBadge";
 
 /**
  * Custom hook for configuring TanStack Table for orders
@@ -62,6 +54,34 @@ export function useOrdersTable({
   // Define columns
   const columns = useMemo<ColumnDef<Order>[]>(
     () => [
+      // Select checkbox column
+      {
+        id: COLUMN_IDS.SELECT,
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+            onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+            aria-label="Select all"
+            className="translate-y-[2px]"
+          />
+        ),
+        cell: ({ row }) => (
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label="Select row"
+            className="translate-y-[2px]"
+            onClick={(e) => e.stopPropagation()}
+          />
+        ),
+        size: 40,
+        enableSorting: false,
+        enableResizing: false,
+        enableHiding: false,
+        meta: {
+          className: "px-2",
+        },
+      },
       // Expand button column
       {
         id: COLUMN_IDS.EXPAND,
@@ -246,7 +266,7 @@ export function useOrdersTable({
         enableResizing: true,
         enableHiding: true,
         meta: {
-          className: "text-right",
+          className: "text-right pr-6",
         },
       },
       // Status column
@@ -256,36 +276,11 @@ export function useOrdersTable({
         header: "상태",
         cell: ({ row }) => {
           const order = row.original;
-          const info = statusStyles[order.status] || { label: order.status };
-
           return (
-            <div className="flex items-center gap-1">
-              {info.variant ? (
-                <Badge variant={info.variant}>{info.label}</Badge>
-              ) : (
-                <Badge variant="default" className={info.className}>
-                  {info.label}
-                </Badge>
-              )}
-              {order.is_locked && (
-                <Badge variant="outline" className="ml-1">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                  </svg>
-                </Badge>
-              )}
-            </div>
+            <OrderStatusBadge
+              status={order.status}
+              isLocked={order.is_locked}
+            />
           );
         },
         size: 150,
@@ -293,7 +288,7 @@ export function useOrdersTable({
         enableResizing: true,
         enableHiding: true,
         meta: {
-          className: "",
+          className: "text-center",
         },
       },
       // Actions column (will be rendered separately in the main component)
