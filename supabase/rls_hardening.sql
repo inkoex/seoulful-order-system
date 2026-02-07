@@ -8,6 +8,7 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.order_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notice_products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notice_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.apartments ENABLE ROW LEVEL SECURITY;
 
 -- 1. PRODUCTS
@@ -26,10 +27,15 @@ USING (is_active = true);
 DROP POLICY IF EXISTS "Public read active notices" ON public.notices;
 CREATE POLICY "Public read active notices" ON public.notices 
 FOR SELECT TO anon, authenticated 
-USING (is_active = true);
+USING (status = 'active');
 
 DROP POLICY IF EXISTS "Public read notice products" ON public.notice_products;
 CREATE POLICY "Public read notice products" ON public.notice_products 
+FOR SELECT TO anon, authenticated 
+USING (true);
+
+DROP POLICY IF EXISTS "Public read notice limits" ON public.notice_limits;
+CREATE POLICY "Public read notice limits" ON public.notice_limits 
 FOR SELECT TO anon, authenticated 
 USING (true);
 
