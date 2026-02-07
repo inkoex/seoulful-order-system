@@ -1,5 +1,5 @@
 -- =============================================
--- RLS HARDENING MIGRATION
+-- RLS HARDENING MIGRATION (Idempotent)
 -- =============================================
 
 -- Enable RLS on all tables
@@ -40,45 +40,41 @@ FOR SELECT TO anon, authenticated
 USING (true);
 
 -- 4. ORDERS
--- Restrict public SELECT to edit_token only.
--- Phone-based lookup should now use the search_orders_by_phone() RPC.
+-- Clean up all potential old policy names
 DROP POLICY IF EXISTS "Allow view by phone or token" ON public.orders;
 DROP POLICY IF EXISTS "Users can only see their own orders via phone/token" ON public.orders;
 DROP POLICY IF EXISTS "Strict access via token" ON public.orders;
-
-CREATE POLICY "Allow view by token" 
-ON public.orders FOR SELECT TO authenticated -- Restrict to authenticated (Admin)
-USING (true);
-
--- Anonymous users cannot SELECT directly anymore. They MUST use RPC.
 DROP POLICY IF EXISTS "Allow view by token" ON public.orders;
-CREATE POLICY "Admin select orders" ON public.orders FOR SELECT TO authenticated USING (true);
-CREATE POLICY "Anon no direct select" ON public.orders FOR SELECT TO anon USING (false);
-
--- Anonymous users cannot UPDATE directly anymore. They MUST use update_order_with_token RPC.
 DROP POLICY IF EXISTS "Allow update by token only" ON public.orders;
-CREATE POLICY "Admin update orders" ON public.orders FOR UPDATE TO authenticated USING (true);
-CREATE POLICY "Anon no direct update" ON public.orders FOR UPDATE TO anon USING (false);
-
--- Disallow direct insert (must use create_order_with_items RPC)
+DROP POLICY IF EXISTS "Admin select orders" ON public.orders;
+DROP POLICY IF EXISTS "Anon no direct select" ON public.orders;
+DROP POLICY IF EXISTS "Admin update orders" ON public.orders;
+DROP POLICY IF EXISTS "Anon no direct update" ON public.orders;
 DROP POLICY IF EXISTS "No direct insertion" ON public.orders;
-CREATE POLICY "No direct insertion" 
-ON public.orders FOR INSERT TO anon, authenticated 
-WITH CHECK (false);
+
+-- New clean policies
+-- Admin can do everything
+CREATE POLICY "Admin select orders" ON public.orders FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Admin update orders" ON public.orders FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Admin insert orders" ON public.orders FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Anonymous users cannot SELECT/UPDATE directly. They MUST use RPCs.
+CREATE POLICY "Anon no direct select" ON public.orders FOR SELECT TO anon USING (false);
+CREATE POLICY "Anon no direct update" ON public.orders FOR UPDATE TO anon USING (false);
+CREATE POLICY "Anon no direct insert" ON public.orders FOR INSERT TO anon WITH CHECK (false);
 
 -- 5. ORDER ITEMS
 DROP POLICY IF EXISTS "Allow view linked items" ON public.order_items;
-CREATE POLICY "Allow view linked items" 
-ON public.order_items FOR SELECT TO anon, authenticated 
-USING (EXISTS (
-    SELECT 1 FROM public.orders 
-    WHERE orders.id = order_items.order_id
-));
+DROP POLICY IF EXISTS "No direct modification of items" ON public.order_items;
+DROP POLICY IF EXISTS "Admin all order_items" ON public.order_items;
+DROP POLICY IF EXISTS "Anon no direct access order_items" ON public.order_items;
 
--- Disallow direct insert/update/delete for order_items
-CREATE POLICY "No direct modification of items" 
-ON public.order_items FOR ALL TO anon, authenticated 
-USING (false);
+-- Admin can do everything
+CREATE POLICY "Admin all order_items" ON public.order_items FOR ALL TO authenticated USING (true);
+
+-- Anonymous can only view items via orders they have access to (if any) or via RPC
+-- To keep it simple and consistent with orders:
+CREATE POLICY "Anon no direct access order_items" ON public.order_items FOR ALL TO anon USING (false);
 
 -- =============================================
 -- RPC EXCEPTION HANDLING FIX
