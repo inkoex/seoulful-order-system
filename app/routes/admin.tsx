@@ -1,4 +1,5 @@
-import { Outlet } from "react-router";
+import { Outlet, useLocation, useNavigate } from "react-router";
+import { useEffect } from "react";
 import { requireAuth } from "@/lib/auth.server";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { Separator } from "@/components/ui/separator";
@@ -11,6 +12,15 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 export default function AdminLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (location.pathname === "/admin" || location.pathname === "/admin/") {
+      navigate("/admin/dashboard", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full">
