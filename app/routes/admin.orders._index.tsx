@@ -349,7 +349,7 @@ export default function AdminOrdersPage() {
 
             {/* Sticky Toolbar Section */}
             <div className="sticky top-0 z-20 bg-brand-background/95 backdrop-blur supports-[backdrop-filter]:bg-brand-background/60 pb-6 mb-2 pt-1">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center justify-between p-3 rounded-2xl border-2 border-brand-charcoal/5 bg-white shadow-xl shadow-brand-charcoal/5">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center justify-between p-3 rounded-xl border-2 border-brand-charcoal/5 bg-white shadow-xl shadow-brand-charcoal/5">
                     <div className="flex flex-1 items-center gap-4">
                         <div className="relative flex-1 max-w-sm group">
                             <Input
@@ -454,7 +454,7 @@ export default function AdminOrdersPage() {
                 </div>
             </div>
 
-            <Card className="border-none shadow-2xl shadow-brand-charcoal/5 rounded-[2rem] overflow-hidden bg-white">
+            <Card className="border-none shadow-2xl shadow-brand-charcoal/5 rounded-2xl overflow-hidden bg-white">
                 <CardHeader className="pb-4 bg-muted/10 border-b border-brand-charcoal/5 px-8 py-6">
                     <CardTitle className="text-xl font-black text-brand-charcoal tracking-tight">
                         주문 목록 <span className="text-brand-primary ml-1">({totalCount.toLocaleString()}개)</span>

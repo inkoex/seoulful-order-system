@@ -21,9 +21,18 @@ export default function AdminLayout() {
     }
   }, [location.pathname, navigate]);
 
+  // Prevent double scrollbars by disabling body scroll while in admin
+  useEffect(() => {
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = originalOverflow || "auto";
+    };
+  }, []);
+
   return (
     <SidebarProvider>
-      <div className="admin-b2b admin-b2b-shell flex h-screen w-full text-foreground">
+      <div className="admin-b2b admin-b2b-shell flex h-screen w-full overflow-hidden text-foreground">
         <AdminSidebar />
         <SidebarInset>
           <header className="admin-b2b-header sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-border/80 px-4">
