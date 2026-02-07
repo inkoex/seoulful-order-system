@@ -47,15 +47,18 @@ DROP POLICY IF EXISTS "Users can only see their own orders via phone/token" ON p
 DROP POLICY IF EXISTS "Strict access via token" ON public.orders;
 
 CREATE POLICY "Allow view by token" 
-ON public.orders FOR SELECT TO anon, authenticated 
-USING (edit_token IS NOT NULL);
+ON public.orders FOR SELECT TO authenticated -- Restrict to authenticated (Admin)
+USING (true);
 
--- UPDATE is also restricted to token + unlocked status
+-- Anonymous users cannot SELECT directly anymore. They MUST use RPC.
+DROP POLICY IF EXISTS "Allow view by token" ON public.orders;
+CREATE POLICY "Admin select orders" ON public.orders FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Anon no direct select" ON public.orders FOR SELECT TO anon USING (false);
+
+-- Anonymous users cannot UPDATE directly anymore. They MUST use update_order_with_token RPC.
 DROP POLICY IF EXISTS "Allow update by token only" ON public.orders;
-CREATE POLICY "Allow update by token only" 
-ON public.orders FOR UPDATE TO anon, authenticated 
-USING (edit_token IS NOT NULL AND is_locked = false)
-WITH CHECK (edit_token IS NOT NULL AND is_locked = false);
+CREATE POLICY "Admin update orders" ON public.orders FOR UPDATE TO authenticated USING (true);
+CREATE POLICY "Anon no direct update" ON public.orders FOR UPDATE TO anon USING (false);
 
 -- Disallow direct insert (must use create_order_with_items RPC)
 DROP POLICY IF EXISTS "No direct insertion" ON public.orders;

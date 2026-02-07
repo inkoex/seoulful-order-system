@@ -53,32 +53,23 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         }, { status: 403 });
     }
 
-    const [orderResult, noticeSnapshot] = await Promise.all([
-        supabaseAdmin
-            .from('orders')
-            .select(`
-                *,
-                order_items (
-                    id,
-                    product_id,
-                    quantity,
-                    unit_price,
-                    subtotal
-                )
-            `)
-            .eq('id', orderId)
-            .eq('edit_token', token)
-            .single(),
+    const [orderDataResult, noticeSnapshot] = await Promise.all([
+        supabaseAdmin.rpc('get_order_for_edit', { p_order_id: orderId, p_token: token }),
         getNoticeSnapshot()
     ]);
 
-    const { data: order, error: orderError } = orderResult;
+    const { data: orderData, error: orderError } = orderDataResult;
 
-    if (orderError || !order) {
+    if (orderError || !orderData) {
         return data({
             error: "접근 권한이 없습니다. 올바른 링크를 사용해주세요."
         }, { status: 403 });
     }
+
+    const order = {
+        ...orderData.order,
+        order_items: orderData.items || []
+    };
 
     // Fetch all products for form
     const { data: products } = await supabaseAdmin
@@ -246,45 +237,22 @@ export async function action({ request, params }: Route.ActionArgs) {
         };
     }
 
-    // Update order
-    const { error: updateError } = await supabaseAdmin
-        .from('orders')
-        .update({
-            delivery_date: newDateStr,
-            notes: notes || null,
-            subtotal: subtotalValue,
-            delivery_fee: deliveryFeeValue,
-            total_amount: finalTotalAmount,
-            updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
+    const { data: success, error: updateError } = await supabaseAdmin.rpc('update_order_with_token', {
+        p_order_id: orderId,
+        p_token: token,
+        p_delivery_date: newDateStr,
+        p_notes: notes || null,
+        p_subtotal: subtotalValue,
+        p_delivery_fee: deliveryFeeValue,
+        p_total_amount: finalTotalAmount,
+        p_items: orderItemsData
+    });
 
-    if (updateError) {
+    if (updateError || !success) {
         return data({
             error: "주문 수정에 실패했습니다.",
-            details: updateError.message
+            details: updateError?.message || "Invalid token or locked order"
         }, { status: 500 });
-    }
-
-    // Delete old items and insert new ones
-    await supabaseAdmin.from('order_items').delete().eq('order_id', orderId);
-
-    if (orderItemsData.length > 0) {
-        const itemsToInsert = orderItemsData.map(i => ({
-            ...i,
-            order_id: orderId
-        }));
-
-        const { error: itemsError } = await supabaseAdmin
-            .from('order_items')
-            .insert(itemsToInsert);
-
-        if (itemsError) {
-            return data({
-                error: "주문 상품 수정 실패",
-                details: itemsError.message
-            }, { status: 500 });
-        }
     }
 
     // Log to order_history
