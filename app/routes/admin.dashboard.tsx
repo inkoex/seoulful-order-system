@@ -114,17 +114,17 @@ export default function AdminDashboardPage() {
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
                 <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">오늘 주문</CardTitle>
+                        <CardTitle className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest">오늘 주문</CardTitle>
                         <ShoppingCart className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-brand-charcoal">{stats.todayOrders} <span className="text-sm font-bold text-brand-charcoal/30">건</span></div>
+                        <div className="text-3xl font-black text-brand-charcoal">{stats.todayOrders} <span className="text-sm font-bold text-brand-charcoal/20">건</span></div>
                     </CardContent>
                 </Card>
 
                 <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">이번 달 매출</CardTitle>
+                        <CardTitle className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest">이번 달 매출</CardTitle>
                         <TrendingUp className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
@@ -134,21 +134,21 @@ export default function AdminDashboardPage() {
 
                 <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">판매 상품</CardTitle>
+                        <CardTitle className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest">판매 상품</CardTitle>
                         <Package className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-brand-charcoal">{stats.activeProducts} <span className="text-sm font-bold text-brand-charcoal/30">종</span></div>
+                        <div className="text-3xl font-black text-brand-charcoal">{stats.activeProducts} <span className="text-sm font-bold text-brand-charcoal/20">종</span></div>
                     </CardContent>
                 </Card>
 
                 <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">총 고객수</CardTitle>
+                        <CardTitle className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest">총 고객수</CardTitle>
                         <Users className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-black text-brand-charcoal">{stats.totalCustomers} <span className="text-sm font-bold text-brand-charcoal/30">명</span></div>
+                        <div className="text-3xl font-black text-brand-charcoal">{stats.totalCustomers} <span className="text-sm font-bold text-brand-charcoal/20">명</span></div>
                     </CardContent>
                 </Card>
             </div>
@@ -184,31 +184,31 @@ export default function AdminDashboardPage() {
                 <CardContent>
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                         <div className="rounded-2xl border-2 border-brand-charcoal/5 p-5 bg-brand-background/30">
-                            <p className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-widest mb-1">전체 주문</p>
-                            <p className="text-2xl font-black text-brand-charcoal">{summary.totalOrders} <span className="text-xs font-bold opacity-30">건</span></p>
+                            <p className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest mb-1.5">전체 주문</p>
+                            <p className="text-2xl font-black text-brand-charcoal">{summary.totalOrders} <span className="text-xs font-bold opacity-20">건</span></p>
                         </div>
                         <div className="rounded-2xl border-2 border-brand-charcoal/5 p-5 bg-brand-background/30">
-                            <p className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-widest mb-1">매출 합계</p>
+                            <p className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest mb-1.5">매출 합계</p>
                             <p className="text-2xl font-black text-brand-charcoal">₹{summary.dailyRevenue.toLocaleString()}</p>
                         </div>
-                        <div className="rounded-2xl border-2 border-amber-100 p-5 bg-amber-50/30">
-                            <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-widest mb-1">진행 중</p>
+                        <div className="rounded-2xl border-2 border-amber-200/50 p-5 bg-amber-50/30">
+                            <p className="text-xs font-bold text-amber-600/80 uppercase tracking-widest mb-1.5">진행 중</p>
                             <div className="flex items-baseline gap-2">
                                 <p className="text-2xl font-black text-amber-600">
                                     {summary.statusCounts.received + summary.statusCounts.ready}
                                 </p>
-                                <p className="text-[10px] font-bold text-amber-600/40 italic">
+                                <p className="text-[11px] font-bold text-amber-600/50 italic leading-none">
                                     접수: {summary.statusCounts.received} / 완료: {summary.statusCounts.ready}
                                 </p>
                             </div>
                         </div>
-                        <div className="rounded-2xl border-2 border-blue-100 p-5 bg-blue-50/30">
-                            <p className="text-[10px] font-bold text-blue-600/60 uppercase tracking-widest mb-1">완료 / 취소</p>
+                        <div className="rounded-2xl border-2 border-blue-200/50 p-5 bg-blue-50/30">
+                            <p className="text-xs font-bold text-blue-600/80 uppercase tracking-widest mb-1.5">완료 / 취소</p>
                             <div className="flex items-baseline gap-2">
                                 <p className="text-2xl font-black text-blue-600">
                                     {summary.statusCounts.delivered + summary.statusCounts.paid + summary.statusCounts.cancelled}
                                 </p>
-                                <p className="text-[10px] font-bold text-blue-600/40 italic">
+                                <p className="text-[11px] font-bold text-blue-600/50 italic leading-none">
                                     배달: {summary.statusCounts.delivered} / 지불: {summary.statusCounts.paid} / 취소: {summary.statusCounts.cancelled}
                                 </p>
                             </div>

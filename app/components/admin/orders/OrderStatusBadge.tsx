@@ -53,11 +53,11 @@ export function OrderStatusBadge({ status, className, isLocked }: OrderStatusBad
             <Badge
                 variant="outline"
                 className={cn(
-                    "font-bold pl-2.5 pr-4 py-1 rounded-full border shadow-sm text-[10px] uppercase tracking-wider flex items-center justify-center min-w-[80px] transition-all duration-300",
+                    "font-black pl-3 pr-4 py-1.5 rounded-full border shadow-sm text-[11px] uppercase tracking-wider flex items-center justify-center min-w-[84px] transition-all duration-300",
                     config.className
                 )}
             >
-                <span className={cn("mr-2 h-1.5 w-1.5 rounded-full shrink-0 shadow-sm", config.dotColor)} />
+                <span className={cn("mr-2 h-2 w-2 rounded-full shrink-0 shadow-sm", config.dotColor)} />
                 <span className="leading-none">{config.label}</span>
             </Badge>
             {isLocked && (

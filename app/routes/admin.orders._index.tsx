@@ -310,35 +310,35 @@ export default function AdminOrdersPage() {
 
             {/* KPI Summary Section */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
-                <Card className="border shadow-none bg-white/50 backdrop-blur-sm">
+                <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">전체 건수</CardTitle>
+                        <CardTitle className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest">전체 건수</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-black text-brand-charcoal">{kpis.total}</div>
                     </CardContent>
                 </Card>
-                <Card className="border border-amber-100 shadow-none bg-amber-50/30">
+                <Card className="border-2 border-amber-100 shadow-none bg-amber-50/30">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-bold text-amber-600/60 uppercase tracking-[0.2em]">접수 대기</CardTitle>
+                        <CardTitle className="text-xs font-bold text-amber-600/70 uppercase tracking-widest">접수 대기</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-black text-amber-600">{kpis.received}</div>
                     </CardContent>
                 </Card>
-                <Card className="border border-blue-100 shadow-none bg-blue-50/30">
+                <Card className="border-2 border-blue-100 shadow-none bg-blue-50/30">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-[10px] font-bold text-blue-600/60 uppercase tracking-[0.2em]">생산 완료</CardTitle>
+                        <CardTitle className="text-xs font-bold text-blue-600/70 uppercase tracking-widest">생산 완료</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-3xl font-black text-blue-600">{kpis.ready}</div>
                     </CardContent>
                 </Card>
-                <Card className="border shadow-none bg-white/50 backdrop-blur-sm">
+                <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
-                            <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">잠금 상태</CardTitle>
-                            <Lock className="h-3 w-3 text-brand-charcoal/30" />
+                            <CardTitle className="text-xs font-bold text-brand-charcoal/60 uppercase tracking-widest">잠금 상태</CardTitle>
+                            <Lock className="h-3.5 w-3.5 text-brand-charcoal/40" />
                         </div>
                     </CardHeader>
                     <CardContent>
