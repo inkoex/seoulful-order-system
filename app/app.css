@@ -135,6 +135,57 @@ body {
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
 }
 
+.admin-b2b {
+  --background: 220 26% 96%;
+  --foreground: 222 32% 15%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 32% 15%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 32% 15%;
+  --primary: 221 69% 37%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 217 33% 92%;
+  --secondary-foreground: 222 32% 16%;
+  --muted: 220 23% 94%;
+  --muted-foreground: 217 14% 43%;
+  --accent: 220 34% 91%;
+  --accent-foreground: 222 32% 16%;
+  --border: 220 20% 86%;
+  --input: 220 20% 86%;
+  --ring: 221 69% 37%;
+  --sidebar: hsl(222 47% 12%);
+  --sidebar-foreground: hsl(217 32% 88%);
+  --sidebar-primary: hsl(221 69% 50%);
+  --sidebar-primary-foreground: hsl(210 40% 98%);
+  --sidebar-accent: hsl(222 37% 18%);
+  --sidebar-accent-foreground: hsl(215 30% 91%);
+  --sidebar-border: hsl(221 25% 24%);
+  --sidebar-ring: hsl(214 95% 63%);
+  font-family: "Work Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+.admin-b2b-shell {
+  background:
+    radial-gradient(1200px 480px at 90% -120px, rgba(56, 80, 176, 0.14), transparent 68%),
+    radial-gradient(900px 420px at -18% 118%, rgba(76, 116, 202, 0.12), transparent 64%),
+    hsl(var(--background));
+}
+
+.admin-b2b-header {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88) 0%, rgba(255, 255, 255, 0.74) 100%);
+  backdrop-filter: blur(10px);
+}
+
+.admin-b2b-card {
+  border-color: hsl(var(--border));
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 8px 26px rgba(15, 23, 42, 0.04);
+}
+
+.admin-b2b-soft-card {
+  border: 1px solid hsl(var(--border));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.86) 0%, rgba(248, 250, 252, 0.74) 100%);
+}
+
 .dark {
   --sidebar: hsl(240 5.9% 10%);
   --sidebar-foreground: hsl(240 4.8% 95.9%);

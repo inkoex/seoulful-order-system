@@ -61,7 +61,7 @@ function SidebarProvider({
 }
 
 const sidebarVariants = cva(
-    "group/sidebar relative flex h-svh flex-col bg-background text-foreground transition-all duration-300 ease-in-out",
+    "group/sidebar relative flex h-svh flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
     {
         variants: {
             collapsible: {
@@ -189,8 +189,8 @@ const sidebarMenuButtonVariants = cva(
     {
         variants: {
             variant: {
-                default: "hover:bg-accent hover:text-accent-foreground",
-                active: "bg-primary text-primary-foreground",
+                default: "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                active: "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm",
             },
         },
         defaultVariants: {

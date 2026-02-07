@@ -23,13 +23,13 @@ export default function AdminLayout() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full">
+      <div className="admin-b2b admin-b2b-shell flex h-screen w-full text-foreground">
         <AdminSidebar />
         <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-            <SidebarTrigger className="-ml-1" />
+          <header className="admin-b2b-header sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-border/80 px-4">
+            <SidebarTrigger className="-ml-1 bg-white/70" />
             <div className="h-4 w-[1px] bg-border mx-2" />
-            <h2 className="text-lg font-semibold">Seoulful Order System</h2>
+            <h2 className="text-base font-semibold tracking-tight text-slate-800">Seoulful Order System</h2>
           </header>
           <main className="flex-1 overflow-y-auto">
             <Outlet />

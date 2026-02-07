@@ -31,15 +31,15 @@ export function AdminSidebar() {
   const location = useLocation();
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="flex h-16 items-center border-b px-4 transition-all duration-300">
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border/80 bg-sidebar text-sidebar-foreground">
+      <SidebarHeader className="flex h-16 items-center border-b border-sidebar-border px-4 transition-all duration-300">
         <div className="flex w-full items-center gap-3">
-          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground shrink-0 outline-none">
+          <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shrink-0 outline-none shadow-sm">
             <LayoutDashboard className="size-5" />
           </div>
           <div className="flex flex-col gap-0.5 leading-none transition-all duration-300 overflow-hidden whitespace-nowrap group-data-[state=collapsed]/sidebar:opacity-0 group-data-[state=collapsed]/sidebar:w-0">
-            <span className="font-semibold text-sm">관리자</span>
-            <span className="text-[11px] text-muted-foreground">Seoul Order</span>
+            <span className="font-semibold text-sm text-sidebar-foreground">관리자</span>
+            <span className="text-[11px] text-sidebar-foreground/65">Seoul Order</span>
           </div>
         </div>
       </SidebarHeader>
@@ -52,7 +52,11 @@ export function AdminSidebar() {
 
             return (
               <SidebarMenuItem key={item.path}>
-                <SidebarMenuButton asChild variant={isActive ? "active" : "default"} className="px-0">
+                <SidebarMenuButton
+                  asChild
+                  variant={isActive ? "active" : "default"}
+                  className="px-0 text-sidebar-foreground/80 hover:text-sidebar-foreground"
+                >
                   <Link to={item.path}>
                     <div className="flex w-8 items-center justify-center shrink-0">
                       <Icon className="h-5 w-5" />
@@ -66,10 +70,10 @@ export function AdminSidebar() {
         </SidebarMenu>
       </SidebarContent>
 
-      <SidebarFooter className="border-t px-4 py-3 transition-all duration-300">
+      <SidebarFooter className="border-t border-sidebar-border px-4 py-3 transition-all duration-300">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild className="px-0">
+            <SidebarMenuButton asChild className="px-0 text-sidebar-foreground/70 hover:text-sidebar-foreground">
               <Link to="/admin/logout">
                 <div className="flex w-8 items-center justify-center shrink-0">
                   <LogOut className="h-5 w-5" />
