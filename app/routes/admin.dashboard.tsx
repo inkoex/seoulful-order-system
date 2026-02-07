@@ -111,8 +111,8 @@ export default function AdminDashboardPage() {
                 <p className="mt-1 text-sm font-medium text-slate-500">실시간 운영 현황 및 통계</p>
             </div>
 
-            <div className="mb-10 grid gap-4 md:grid-cols-2 lg:grid-cols-12">
-                <Card className="admin-b2b-card border bg-white transition-all duration-200 hover:-translate-y-0.5 lg:col-span-3">
+            <div className="mb-10 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card className="admin-b2b-card min-h-[132px] border bg-white transition-all duration-200 hover:-translate-y-0.5">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">오늘 주문</CardTitle>
                         <ShoppingCart className="h-4 w-4 text-slate-400" />
@@ -122,7 +122,7 @@ export default function AdminDashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="admin-b2b-card border bg-white transition-all duration-200 hover:-translate-y-0.5 lg:col-span-5">
+                <Card className="admin-b2b-card min-h-[132px] border bg-white transition-all duration-200 hover:-translate-y-0.5">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">이번 달 매출</CardTitle>
                         <TrendingUp className="h-4 w-4 text-primary/70" />
@@ -132,7 +132,7 @@ export default function AdminDashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="admin-b2b-card border bg-white transition-all duration-200 hover:-translate-y-0.5 lg:col-span-2">
+                <Card className="admin-b2b-card min-h-[132px] border bg-white transition-all duration-200 hover:-translate-y-0.5">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">판매 상품</CardTitle>
                         <Package className="h-4 w-4 text-slate-400" />
@@ -142,7 +142,7 @@ export default function AdminDashboardPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="admin-b2b-card border bg-white transition-all duration-200 hover:-translate-y-0.5 lg:col-span-2">
+                <Card className="admin-b2b-card min-h-[132px] border bg-white transition-all duration-200 hover:-translate-y-0.5">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">총 고객수</CardTitle>
                         <Users className="h-4 w-4 text-slate-400" />
