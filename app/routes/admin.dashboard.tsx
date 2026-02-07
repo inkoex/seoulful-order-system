@@ -106,65 +106,49 @@ export default function AdminDashboardPage() {
 
     return (
         <PageContainer size="wide">
-            <div className="mb-8">
-                <h3 className="text-2xl font-bold">대시보드 요약</h3>
-                <p className="text-muted-foreground mt-1">실시간 운영 현황</p>
+            <div className="mb-10">
+                <h1 className="text-2xl font-black tracking-tight text-brand-charcoal">대시보드</h1>
+                <p className="text-brand-charcoal/50 text-sm mt-1 font-medium italic">실시간 운영 현황 및 통계</p>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-blue-50 to-white">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-blue-500" />
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
+                <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-blue-900">오늘 주문</CardTitle>
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <ShoppingCart className="h-4 w-4 text-blue-600" />
-                        </div>
+                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">오늘 주문</CardTitle>
+                        <ShoppingCart className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-blue-900">{stats.todayOrders} <span className="text-sm font-normal text-blue-600">건</span></div>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-blue-400 mt-1">Today's Orders</p>
+                        <div className="text-3xl font-black text-brand-charcoal">{stats.todayOrders} <span className="text-sm font-bold text-brand-charcoal/30">건</span></div>
                     </CardContent>
                 </Card>
 
-                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-emerald-50 to-white">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500" />
+                <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-emerald-900">이번 달 매출</CardTitle>
-                        <div className="p-2 bg-emerald-100 rounded-lg">
-                            <TrendingUp className="h-4 w-4 text-emerald-600" />
-                        </div>
+                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">이번 달 매출</CardTitle>
+                        <TrendingUp className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-emerald-900">₹{stats.monthlyRevenue.toLocaleString()}</div>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-emerald-400 mt-1">Monthly Revenue</p>
+                        <div className="text-3xl font-black text-brand-charcoal">₹{stats.monthlyRevenue.toLocaleString()}</div>
                     </CardContent>
                 </Card>
 
-                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-amber-50 to-white">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+                <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-amber-900">판매 상품</CardTitle>
-                        <div className="p-2 bg-amber-100 rounded-lg">
-                            <Package className="h-4 w-4 text-amber-600" />
-                        </div>
+                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">판매 상품</CardTitle>
+                        <Package className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-amber-900">{stats.activeProducts} <span className="text-sm font-normal text-amber-600">종</span></div>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-amber-400 mt-1">Active Products</p>
+                        <div className="text-3xl font-black text-brand-charcoal">{stats.activeProducts} <span className="text-sm font-bold text-brand-charcoal/30">종</span></div>
                     </CardContent>
                 </Card>
 
-                <Card className="relative overflow-hidden border-none shadow-md bg-gradient-to-br from-purple-50 to-white">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-purple-500" />
+                <Card className="border-2 border-brand-charcoal/5 shadow-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-semibold text-purple-900">총 고객수</CardTitle>
-                        <div className="p-2 bg-purple-100 rounded-lg">
-                            <Users className="h-4 w-4 text-purple-600" />
-                        </div>
+                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">총 고객수</CardTitle>
+                        <Users className="h-4 w-4 text-brand-primary/40" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-3xl font-bold text-purple-900">{stats.totalCustomers} <span className="text-sm font-normal text-purple-600">명</span></div>
-                        <p className="text-[10px] uppercase tracking-wider font-semibold text-purple-400 mt-1">Unique Customers</p>
+                        <div className="text-3xl font-black text-brand-charcoal">{stats.totalCustomers} <span className="text-sm font-bold text-brand-charcoal/30">명</span></div>
                     </CardContent>
                 </Card>
             </div>
@@ -198,32 +182,36 @@ export default function AdminDashboardPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                        <div className="rounded-md border p-4">
-                            <p className="text-sm text-muted-foreground">전체 주문</p>
-                            <p className="text-2xl font-bold">{summary.totalOrders} 건</p>
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                        <div className="rounded-2xl border-2 border-brand-charcoal/5 p-5 bg-brand-background/30">
+                            <p className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-widest mb-1">전체 주문</p>
+                            <p className="text-2xl font-black text-brand-charcoal">{summary.totalOrders} <span className="text-xs font-bold opacity-30">건</span></p>
                         </div>
-                        <div className="rounded-md border p-4">
-                            <p className="text-sm text-muted-foreground">매출 합계</p>
-                            <p className="text-2xl font-bold">₹{summary.dailyRevenue.toLocaleString()}</p>
+                        <div className="rounded-2xl border-2 border-brand-charcoal/5 p-5 bg-brand-background/30">
+                            <p className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-widest mb-1">매출 합계</p>
+                            <p className="text-2xl font-black text-brand-charcoal">₹{summary.dailyRevenue.toLocaleString()}</p>
                         </div>
-                        <div className="rounded-md border p-4">
-                            <p className="text-sm text-muted-foreground">접수/생산 완료</p>
-                            <p className="text-base font-semibold">
-                                {summary.statusCounts.received + summary.statusCounts.ready} 건
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                접수 {summary.statusCounts.received} / 생산 {summary.statusCounts.ready}
-                            </p>
+                        <div className="rounded-2xl border-2 border-amber-100 p-5 bg-amber-50/30">
+                            <p className="text-[10px] font-bold text-amber-600/60 uppercase tracking-widest mb-1">진행 중</p>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-2xl font-black text-amber-600">
+                                    {summary.statusCounts.received + summary.statusCounts.ready}
+                                </p>
+                                <p className="text-[10px] font-bold text-amber-600/40 italic">
+                                    접수: {summary.statusCounts.received} / 완료: {summary.statusCounts.ready}
+                                </p>
+                            </div>
                         </div>
-                        <div className="rounded-md border p-4">
-                            <p className="text-sm text-muted-foreground">배달/지불/취소</p>
-                            <p className="text-base font-semibold">
-                                {summary.statusCounts.delivered + summary.statusCounts.paid + summary.statusCounts.cancelled} 건
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                                배달 {summary.statusCounts.delivered} / 지불 {summary.statusCounts.paid} / 취소 {summary.statusCounts.cancelled}
-                            </p>
+                        <div className="rounded-2xl border-2 border-blue-100 p-5 bg-blue-50/30">
+                            <p className="text-[10px] font-bold text-blue-600/60 uppercase tracking-widest mb-1">완료 / 취소</p>
+                            <div className="flex items-baseline gap-2">
+                                <p className="text-2xl font-black text-blue-600">
+                                    {summary.statusCounts.delivered + summary.statusCounts.paid + summary.statusCounts.cancelled}
+                                </p>
+                                <p className="text-[10px] font-bold text-blue-600/40 italic">
+                                    배달: {summary.statusCounts.delivered} / 지불: {summary.statusCounts.paid} / 취소: {summary.statusCounts.cancelled}
+                                </p>
+                            </div>
                         </div>
                     </div>
                     <div className="mt-6">

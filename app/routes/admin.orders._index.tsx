@@ -297,8 +297,8 @@ export default function AdminOrdersPage() {
             {/* Header Section */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">주문 관리</h1>
-                    <p className="text-muted-foreground mt-1">현장의 주문 상황을 실시간으로 확인하고 관리하세요.</p>
+                    <h1 className="text-2xl font-black tracking-tight text-brand-charcoal">주문 관리</h1>
+                    <p className="text-brand-charcoal/50 text-sm mt-1 font-medium italic">현장의 주문 상황을 실시간으로 확인하고 관리하세요.</p>
                 </div>
                 <Button asChild className="w-full sm:w-auto shadow-lg shadow-brand-primary/20">
                     <Link to="/admin/orders/new">
@@ -309,49 +309,49 @@ export default function AdminOrdersPage() {
             </div>
 
             {/* KPI Summary Section */}
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-                <Card className="border-none shadow-sm bg-slate-50/50">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-10">
+                <Card className="border shadow-none bg-white/50 backdrop-blur-sm">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-semibold text-slate-500 uppercase tracking-wider">전체 건수</CardTitle>
+                        <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">전체 건수</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{kpis.total}</div>
+                        <div className="text-3xl font-black text-brand-charcoal">{kpis.total}</div>
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm bg-amber-50/50">
+                <Card className="border border-amber-100 shadow-none bg-amber-50/30">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-semibold text-amber-600 uppercase tracking-wider">접수 대기</CardTitle>
+                        <CardTitle className="text-[10px] font-bold text-amber-600/60 uppercase tracking-[0.2em]">접수 대기</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-amber-700">{kpis.received}</div>
+                        <div className="text-3xl font-black text-amber-600">{kpis.received}</div>
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm bg-blue-50/50">
+                <Card className="border border-blue-100 shadow-none bg-blue-50/30">
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-xs font-semibold text-blue-600 uppercase tracking-wider">생산 완료</CardTitle>
+                        <CardTitle className="text-[10px] font-bold text-blue-600/60 uppercase tracking-[0.2em]">생산 완료</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-blue-700">{kpis.ready}</div>
+                        <div className="text-3xl font-black text-blue-600">{kpis.ready}</div>
                     </CardContent>
                 </Card>
-                <Card className="border-none shadow-sm bg-slate-50/50">
-                    <CardHeader className="pb-2 text-slate-500">
+                <Card className="border shadow-none bg-white/50 backdrop-blur-sm">
+                    <CardHeader className="pb-2">
                         <div className="flex items-center justify-between">
-                            <CardTitle className="text-xs font-semibold uppercase tracking-wider">잠금 상태</CardTitle>
-                            <Lock className="h-3 w-3" />
+                            <CardTitle className="text-[10px] font-bold text-brand-charcoal/40 uppercase tracking-[0.2em]">잠금 상태</CardTitle>
+                            <Lock className="h-3 w-3 text-brand-charcoal/30" />
                         </div>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{kpis.locked}</div>
+                        <div className="text-3xl font-black text-brand-charcoal">{kpis.locked}</div>
                     </CardContent>
                 </Card>
             </div>
 
             {/* Sticky Toolbar Section */}
-            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 pb-4 mb-4 pt-1">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center justify-between p-2 rounded-xl border bg-card shadow-sm">
-                    <div className="flex flex-1 items-center gap-3">
-                        <div className="relative flex-1 max-w-sm">
+            <div className="sticky top-0 z-20 bg-brand-background/95 backdrop-blur supports-[backdrop-filter]:bg-brand-background/60 pb-6 mb-2 pt-1">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center justify-between p-3 rounded-2xl border-2 border-brand-charcoal/5 bg-white shadow-xl shadow-brand-charcoal/5">
+                    <div className="flex flex-1 items-center gap-4">
+                        <div className="relative flex-1 max-w-sm group">
                             <Input
                                 placeholder="고객명, 전화번호, 주문번호 검색..."
                                 value={searchTerm}
@@ -368,7 +368,7 @@ export default function AdminOrdersPage() {
                                         window.location.href = url.toString();
                                     }
                                 }}
-                                className="h-9 pr-8 bg-muted/50 border-none"
+                                className="h-10 pr-10 bg-brand-background/50 border-none rounded-xl focus-visible:ring-1 focus-visible:ring-brand-primary placeholder:text-brand-charcoal/30 font-medium"
                             />
                             {searchTerm && (
                                 <button
@@ -378,7 +378,7 @@ export default function AdminOrdersPage() {
                                         url.searchParams.delete("search");
                                         window.location.href = url.toString();
                                     }}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-charcoal/30 hover:text-brand-primary transition-colors"
                                 >
                                     <XCircle className="h-4 w-4" />
                                 </button>
@@ -386,15 +386,15 @@ export default function AdminOrdersPage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                         <Select value={statusFilter} onValueChange={handleStatusFilter}>
-                            <SelectTrigger className="w-[140px] h-9 bg-muted/50 border-none">
+                            <SelectTrigger className="w-[140px] h-10 bg-brand-background/50 border-none rounded-xl font-bold text-brand-charcoal/70">
                                 <SelectValue placeholder="모든 상태" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="rounded-xl border-none shadow-2xl">
                                 <SelectItem value="all">모든 상태</SelectItem>
                                 {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-                                    <SelectItem key={key} value={key}>{config.label}</SelectItem>
+                                    <SelectItem key={key} value={key} className="py-2.5">{config.label}</SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -405,15 +405,15 @@ export default function AdminOrdersPage() {
                                     variant="outline"
                                     size="sm"
                                     className={cn(
-                                        "h-9 bg-muted/50 border-none justify-start text-left font-normal sm:w-[160px]",
-                                        !selectedDate && "text-muted-foreground"
+                                        "h-10 bg-brand-background/50 border-none rounded-xl justify-start text-left font-bold sm:w-[160px] text-brand-charcoal/70",
+                                        !selectedDate && "text-brand-charcoal/30"
                                     )}
                                 >
-                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                    <CalendarIcon className="mr-2 h-4 w-4 text-brand-primary" />
                                     {selectedDate ? format(selectedDate, "yyyy-MM-dd") : "배달일"}
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="end">
+                            <PopoverContent className="w-auto p-0 rounded-2xl border-none shadow-2xl" align="end">
                                 <Calendar
                                     mode="single"
                                     selected={selectedDate}
@@ -433,39 +433,41 @@ export default function AdminOrdersPage() {
                                 onClick={() => {
                                     window.location.href = window.location.pathname;
                                 }}
-                                className="h-9 px-3 text-brand-primary hover:bg-brand-primary/10"
+                                className="h-10 px-4 text-brand-primary hover:bg-brand-primary/10 rounded-xl font-bold"
                             >
                                 초기화
                             </Button>
                         )}
 
-                        <div className="h-4 w-[1px] bg-border mx-1 hidden md:block" />
+                        <div className="h-6 w-[2px] bg-brand-charcoal/5 mx-1 hidden md:block rounded-full" />
 
                         <Button
                             variant="outline"
                             size="sm"
                             onClick={() => setIsSettingsOpen(true)}
-                            className="h-9 border-slate-200"
+                            className="h-10 bg-white border-2 border-brand-charcoal/5 rounded-xl hover:border-brand-primary hover:bg-brand-primary/5 transition-all text-brand-charcoal/70 font-bold"
                         >
-                            <Settings className="h-4 w-4 md:mr-2" />
+                            <Settings className="h-4 w-4 md:mr-2 text-brand-charcoal/60" />
                             <span className="hidden md:inline">컬럼 설정</span>
                         </Button>
                     </div>
                 </div>
             </div>
 
-            <Card className="border-none shadow-sm">
-                <CardHeader className="pb-4">
-                    <CardTitle className="text-lg">주문 목록 ({orders.length}개)</CardTitle>
+            <Card className="border-none shadow-2xl shadow-brand-charcoal/5 rounded-[2rem] overflow-hidden bg-white">
+                <CardHeader className="pb-4 bg-muted/10 border-b border-brand-charcoal/5 px-8 py-6">
+                    <CardTitle className="text-xl font-black text-brand-charcoal tracking-tight">
+                        주문 목록 <span className="text-brand-primary ml-1">({totalCount.toLocaleString()}개)</span>
+                    </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                     {!isLoaded ? (
-                        <div className="text-center py-8">
-                            <p className="text-muted-foreground">로딩 중...</p>
+                        <div className="text-center py-20 animate-pulse">
+                            <p className="text-brand-charcoal/30 font-bold tracking-widest uppercase text-sm">로딩 중...</p>
                         </div>
                     ) : orders.length === 0 ? (
-                        <div className="text-center py-8">
-                            <p className="text-muted-foreground">주문 내역이 없습니다.</p>
+                        <div className="text-center py-20">
+                            <p className="text-brand-charcoal/30 font-medium">주문 내역이 없습니다.</p>
                         </div>
                     ) : (
                         <OrdersDataTable

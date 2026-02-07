@@ -94,9 +94,9 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
   return (
     <div className="rounded-md border">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-brand-background/50 border-b-2 border-brand-charcoal/5">
           {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
+            <TableRow key={headerGroup.id} className="hover:bg-transparent border-none">
               {headerGroup.headers.map((header) => {
                 const canSort = header.column.getCanSort();
                 const isSorted = header.column.getIsSorted();
@@ -108,7 +108,10 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
                 return (
                   <TableHead
                     key={header.id}
-                    className={meta?.className}
+                    className={cn(
+                      "h-12 text-[11px] font-black uppercase tracking-[0.15em] text-brand-charcoal/40 border-none",
+                      meta?.className
+                    )}
                     style={{
                       width: header.getSize(),
                       position: "relative",
@@ -117,44 +120,37 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
                     <div className={cn("flex items-center gap-2", meta?.className?.includes("text-center") && "justify-center", meta?.className?.includes("text-right") && "justify-end")}>
                       <div
                         className={cn(
-                          "flex items-center select-none",
-                          canSort && "cursor-pointer"
+                          "flex items-center select-none transition-colors",
+                          canSort && "cursor-pointer hover:text-brand-primary"
                         )}
                         onClick={
                           canSort ? header.column.getToggleSortingHandler() : undefined
                         }
                       >
-                        {/* Hidden balance spacer for centered headers with icons */}
-                        {canSort && meta?.className?.includes("text-center") && (
-                          <div className="w-4 h-4 mr-1 invisible shrink-0" aria-hidden="true" />
-                        )}
-
                         {flexRender(
                           header.column.columnDef.header,
                           header.getContext()
                         )}
 
-                        {/* Sorting indicator */}
                         {canSort && (
-                          <span className="ml-1 w-4 h-4 flex items-center justify-center shrink-0">
+                          <span className="ml-1.5 w-4 h-4 flex items-center justify-center shrink-0">
                             {isSorted === "asc" ? (
-                              <ArrowUp className="h-3 w-3" />
+                              <ArrowUp className="h-3 w-3 text-brand-primary" />
                             ) : isSorted === "desc" ? (
-                              <ArrowDown className="h-3 w-3" />
+                              <ArrowDown className="h-3 w-3 text-brand-primary" />
                             ) : (
-                              <ArrowUpDown className="h-3 w-3 opacity-50" />
+                              <ArrowUpDown className="h-3 w-3 opacity-30 group-hover:opacity-100" />
                             )}
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Resize handle */}
                     {canResize && (
                       <div
                         onMouseDown={header.getResizeHandler()}
                         onTouchStart={header.getResizeHandler()}
-                        className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500 active:bg-blue-600"
+                        className="absolute right-0 top-1/4 h-1/2 w-[2px] cursor-col-resize hover:bg-brand-primary/30 active:bg-brand-primary"
                         style={{ userSelect: "none" }}
                       />
                     )}
@@ -207,13 +203,13 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
                         const order = row.original;
                         return (
                           <TableCell key={cell.id} className="text-right py-2 pr-4" data-actions-column>
-                            <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center justify-end gap-1.5 sm:opacity-0 sm:group-hover:opacity-100 transition-all duration-300">
                               {/* Quick Action: Status Change */}
                               {order.status === "received" && !order.is_locked && (
                                 <Button
                                   variant="outline"
-                                  size="sm"
-                                  className="h-8 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                  size="xs"
+                                  className="h-7 px-2.5 border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 rounded-lg text-[10px] font-bold"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleAction("change_status", order.id, { status: "ready" });
@@ -226,8 +222,8 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
                               {order.status === "ready" && !order.is_locked && (
                                 <Button
                                   variant="outline"
-                                  size="sm"
-                                  className="h-8 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                                  size="xs"
+                                  className="h-7 px-2.5 border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-[10px] font-bold"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleAction("change_status", order.id, { status: "delivered" });
@@ -241,26 +237,26 @@ export function OrdersDataTable({ table, page, pageSize, totalCount }: OrdersDat
                               {order.is_locked && (
                                 <Button
                                   variant="outline"
-                                  size="sm"
-                                  className="h-8 border-slate-200 text-slate-600 hover:bg-slate-50"
+                                  size="xs"
+                                  className="h-7 px-2.5 border-brand-charcoal/10 bg-white text-brand-charcoal/60 hover:bg-brand-background rounded-lg text-[10px] font-bold"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleAction("toggle_lock", order.id);
                                   }}
                                 >
-                                  <Unlock className="h-3.5 w-3.5 mr-1" />
-                                  잠금해제
+                                  <Unlock className="h-3 w-3 mr-1" />
+                                  잠금 해제
                                 </Button>
                               )}
 
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-brand-primary/10 transition-colors rounded-lg">
                                     <span className="sr-only">메뉴 열기</span>
                                     <div className="flex flex-col items-center gap-0.5">
-                                      <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                      <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
-                                      <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                      <div className="w-1 h-1 rounded-full bg-brand-charcoal/30" />
+                                      <div className="w-1 h-1 rounded-full bg-brand-charcoal/30" />
+                                      <div className="w-1 h-1 rounded-full bg-brand-charcoal/30" />
                                     </div>
                                   </Button>
                                 </DropdownMenuTrigger>
