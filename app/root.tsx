@@ -63,31 +63,114 @@ export default function App() {
   );
 }
 
+import { FileQuestion, AlertCircle, Home, ShoppingBag, RefreshCcw } from "lucide-react";
+import { Button } from "./components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "./components/ui/card";
+import { PageContainer } from "./components/ui/container";
+import { Link } from "react-router";
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   let message = "Oops!";
   let details = "An unexpected error occurred.";
-  let stack: string | undefined;
+  let is404 = false;
 
   if (isRouteErrorResponse(error)) {
-    message = error.status === 404 ? "404" : "Error";
-    details =
-      error.status === 404
-        ? "The requested page could not be found."
-        : error.statusText || details;
+    is404 = error.status === 404;
+    message = is404 ? "404" : "Error";
+    details = is404
+      ? "The requested page could not be found."
+      : error.statusText || details;
   } else if (import.meta.env.DEV && error && error instanceof Error) {
     details = error.message;
-    stack = error.stack;
   }
 
   return (
-    <main className="pt-16 p-4 container mx-auto">
-      <h1>{message}</h1>
-      <p>{details}</p>
-      {stack && (
-        <pre className="w-full p-4 overflow-x-auto">
-          <code>{stack}</code>
-        </pre>
-      )}
-    </main>
+    <div className="min-h-screen bg-brand-background font-sans flex flex-col items-center justify-center p-4">
+      <PageContainer size="narrow" className="w-full">
+        <Card className="text-center rounded-[2rem] shadow-2xl border-none bg-gradient-to-br from-white via-white to-brand-background/30 overflow-hidden">
+          <CardHeader className="space-y-6 pb-8 pt-12">
+            {/* Icon container with animation */}
+            <div className="mx-auto relative animate-dynamic-reveal">
+              <div className="h-28 w-28 rounded-full bg-brand-primary/10 flex items-center justify-center backdrop-blur-sm">
+                <div className="h-24 w-24 rounded-full bg-brand-primary/20 flex items-center justify-center">
+                  {is404 ? (
+                    <FileQuestion className="h-14 w-14 text-brand-primary" strokeWidth={2} />
+                  ) : (
+                    <AlertCircle className="h-14 w-14 text-brand-primary" strokeWidth={2} />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Error Message */}
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <span className="section-label">{is404 ? "Not Found" : "System Error"}</span>
+                <CardTitle className="text-3xl md:text-4xl font-black text-brand-charcoal">
+                  {is404 ? "Where are we?" : "Something went wrong"}
+                </CardTitle>
+                <div className="text-lg font-light text-brand-charcoal/50 space-y-1">
+                  <p>{is404 ? "We couldn't find this page." : "We've encountered an unexpected issue."}</p>
+                  <p className="text-sm">
+                    {is404 ? "요청하신 페이지를 찾을 수 없습니다." : "알 수 없는 오류가 발생했습니다."}
+                  </p>
+                </div>
+              </div>
+              <div className="mx-auto section-divider w-16 bg-brand-primary"></div>
+            </div>
+          </CardHeader>
+
+          <CardContent className="pb-8">
+            <p className="text-brand-charcoal/60 leading-relaxed max-w-xs mx-auto">
+              {is404
+                ? "The link might be broken or the page has been moved."
+                : "Our bakers are looking into it. Please try refreshing the page."}
+            </p>
+
+            {!is404 && import.meta.env.DEV && error instanceof Error && (
+              <div className="mt-6 p-4 bg-red-50 rounded-xl text-left overflow-auto max-h-40">
+                <p className="text-xs font-mono text-red-800 leading-tight">
+                  {error.stack}
+                </p>
+              </div>
+            )}
+          </CardContent>
+
+          <CardFooter className="flex flex-col sm:flex-row gap-3 justify-center pb-12 px-8">
+            <Button asChild variant="outline" className="w-full sm:w-auto h-14 rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5">
+              <Link to="/">
+                <Home className="mr-2 h-5 w-5" />
+                <span>Go Home</span>
+              </Link>
+            </Button>
+
+            {is404 ? (
+              <Button asChild variant="premium" className="w-full sm:w-auto">
+                <Link to="/order">
+                  <ShoppingBag className="mr-2 h-5 w-5" />
+                  <span>Go to Order</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button
+                variant="premium"
+                className="w-full sm:w-auto"
+                onClick={() => window.location.reload()}
+              >
+                <RefreshCcw className="mr-2 h-5 w-5" />
+                <span>Try Again</span>
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      </PageContainer>
+
+      {/* Footer Branding */}
+      <div className="mt-8 text-center animate-dynamic-reveal [animation-delay:400ms]">
+        <Link to="/" className="text-xl font-black tracking-tighter text-brand-charcoal/20 hover:text-brand-primary transition-colors">
+          Seoulful<span className="text-brand-primary/20">.</span>
+        </Link>
+      </div>
+    </div>
   );
 }

@@ -91,8 +91,8 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!noticeId || typeof noticeId !== "string") {
             return data({ error: "공지 ID가 없습니다" }, { status: 400 });
         }
-        await supabaseAdmin.from("notices").update({ status: "active" }).eq("id", noticeId);
         await supabaseAdmin.from("notices").update({ status: "closed" }).neq("id", noticeId).eq("status", "active");
+        await supabaseAdmin.from("notices").update({ status: "active" }).eq("id", noticeId);
         invalidateNoticeSnapshot();
         return data({ success: true });
     }

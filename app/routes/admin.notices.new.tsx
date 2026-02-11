@@ -135,6 +135,10 @@ export async function action({ request }: ActionFunctionArgs) {
     const limitProductIds = formData.getAll("product_limit_product_id").filter((item): item is string => typeof item === "string");
     const limitQuantities = formData.getAll("product_limit_max_quantity").filter((item): item is string => typeof item === "string");
 
+    if (activateNow) {
+        await supabaseAdmin.from("notices").update({ status: "closed" }).eq("status", "active");
+    }
+
     const { data: notice, error } = await supabaseAdmin
         .from("notices")
         .insert({
@@ -151,10 +155,6 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (error || !notice) {
         return data({ error: "공지 생성에 실패했습니다" }, { status: 500 });
-    }
-
-    if (activateNow) {
-        await supabaseAdmin.from("notices").update({ status: "closed" }).neq("id", notice.id).eq("status", "active");
     }
 
     if (!isAllProducts && productIds.length > 0) {
