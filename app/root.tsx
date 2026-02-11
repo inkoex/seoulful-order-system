@@ -136,8 +136,8 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
             )}
           </CardContent>
 
-          <CardFooter className="flex flex-col sm:flex-row gap-3 justify-center pb-12 px-8">
-            <Button asChild variant="outline" className="w-full sm:w-auto h-14 rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5">
+          <CardFooter className="flex flex-col sm:flex-row gap-3 justify-center pb-12 px-8 max-w-md mx-auto w-full">
+            <Button asChild variant="outline" className="flex-1 h-14 rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5 transition-all duration-300 hover:scale-[1.02]">
               <Link to="/">
                 <Home className="mr-2 h-5 w-5" />
                 <span>Go Home</span>
@@ -145,7 +145,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
             </Button>
 
             {is404 ? (
-              <Button asChild variant="premium" className="w-full sm:w-auto">
+              <Button asChild variant="premium" className="flex-1 h-14 transition-all duration-300 hover:scale-[1.02]">
                 <Link to="/order">
                   <ShoppingBag className="mr-2 h-5 w-5" />
                   <span>Go to Order</span>
@@ -154,7 +154,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
             ) : (
               <Button
                 variant="premium"
-                className="w-full sm:w-auto"
+                className="flex-1 h-14 transition-all duration-300 hover:scale-[1.02]"
                 onClick={() => window.location.reload()}
               >
                 <RefreshCcw className="mr-2 h-5 w-5" />
