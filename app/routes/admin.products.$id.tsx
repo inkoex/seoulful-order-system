@@ -223,9 +223,8 @@ export default function AdminProductEditPage() {
                     </div>
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                삭제
+                            <Button variant="destructive" size="icon" className="h-9 w-9" title="삭제">
+                                <Trash2 className="h-4 w-4" />
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>

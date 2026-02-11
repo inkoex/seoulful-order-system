@@ -205,12 +205,12 @@ export default function AdminApartmentEditPage() {
                         <AlertDialogTrigger asChild>
                             <Button
                                 variant="destructive"
-                                size="sm"
+                                size="icon"
+                                className="h-9 w-9"
                                 disabled={!canDelete}
-                                title={!canDelete ? "주문이 있는 아파트는 삭제할 수 없습니다" : ""}
+                                title={!canDelete ? "주문이 있는 아파트는 삭제할 수 없습니다" : "삭제"}
                             >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                삭제
+                                <Trash2 className="h-4 w-4" />
                             </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>

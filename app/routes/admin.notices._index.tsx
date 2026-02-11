@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useActionData, useLoaderData, data, type LoaderFunctionArgs, type ActionFunctionArgs } from "react-router";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -211,8 +211,8 @@ export default function AdminNoticesPage() {
                                                     ))}
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <div className="grid grid-cols-[32px_72px_64px] items-center justify-end gap-2">
-                                                        <Button asChild size="icon" variant="outline" className="h-8 w-8">
+                                                    <div className="flex justify-end gap-2">
+                                                        <Button asChild size="sm" variant="outline" className="h-8 w-8 p-0">
                                                             <Link to={`/admin/notices/${notice.id}`}>
                                                                 <Pencil className="h-3 w-3" />
                                                             </Link>
@@ -226,8 +226,8 @@ export default function AdminNoticesPage() {
                                                         </form>
                                                         <AlertDialog>
                                                             <AlertDialogTrigger asChild>
-                                                                <Button size="sm" variant="ghost" type="button" className="h-8 w-full justify-center">
-                                                                    삭제
+                                                                <Button size="sm" variant="outline" type="button" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50">
+                                                                    <Trash2 className="h-3 w-3" />
                                                                 </Button>
                                                             </AlertDialogTrigger>
                                                             <AlertDialogContent>
