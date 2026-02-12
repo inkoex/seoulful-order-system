@@ -20,7 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabaseAdmin } from "@/lib/supabase.server";
-import { getNoticeSnapshot } from "@/lib/notices.server";
+import { getNoticeSnapshot, invalidateNoticeSnapshot } from "@/lib/notices.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.edit.$id";
 
@@ -264,6 +264,7 @@ export async function action({ request, params }: Route.ActionArgs) {
         });
     }
 
+    invalidateNoticeSnapshot();
     return redirect(`/order/complete?id=${orderId}`);
 }
 

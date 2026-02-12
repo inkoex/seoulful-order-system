@@ -52,7 +52,7 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase.server";
-import { getNoticeSnapshot, type NoticeSnapshot } from "@/lib/notices.server";
+import { getNoticeSnapshot, invalidateNoticeSnapshot, type NoticeSnapshot } from "@/lib/notices.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order._index";
 
@@ -268,6 +268,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     // orderResult contains: { id, order_number, edit_token, total_amount }
+    invalidateNoticeSnapshot();
     return redirect(`/order/complete?id=${orderResult.id}`);
 }
 

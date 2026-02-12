@@ -38,6 +38,7 @@ import { supabaseAdmin } from "@/lib/supabase.server";
 import { requireAuth } from "@/lib/auth.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/admin.orders.new";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
 
 // --- Zod Schema ---
 const phoneRegex = /^\d{10}$/;
@@ -169,6 +170,7 @@ export async function action({ request }: Route.ActionArgs) {
     }
 
     // orderResult contains: { id, order_number, edit_token, total_amount }
+    invalidateNoticeSnapshot();
     throw redirect("/admin/orders"); // Redirect to admin orders list
 }
 

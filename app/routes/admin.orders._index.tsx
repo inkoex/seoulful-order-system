@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
 import { useTableSettings } from "@/hooks/useTableSettings";
 import { useOrdersTable } from "@/hooks/useOrdersTable";
 import { OrdersDataTable } from "@/components/admin/orders/OrdersDataTable";
@@ -222,6 +223,8 @@ export async function action({ request }: Route.ActionArgs) {
 
             if (error) throw error;
         }
+
+        invalidateNoticeSnapshot();
 
         return data({
             success: true,

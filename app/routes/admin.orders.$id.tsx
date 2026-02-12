@@ -29,6 +29,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
 import type { Route } from "./+types/admin.orders.$id";
 
 export async function loader({ request, params }: Route.LoaderArgs) {
@@ -119,6 +120,7 @@ export async function action({ request, params }: Route.ActionArgs) {
             .eq('id', params.id);
     }
 
+    invalidateNoticeSnapshot();
     return data({ success: true });
 }
 
