@@ -5,6 +5,7 @@ import { CheckCircle2, MessageCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.complete";
 
@@ -41,7 +42,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
 
     // Fetch order basic info
-    const { data: order, error: orderError } = await supabase
+    // Use supabaseAdmin to bypass RLS
+    const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
         .select('order_number, total_amount, subtotal, delivery_fee, delivery_date, customer_name, edit_token, id')
         .eq('id', orderId)
@@ -52,7 +54,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     }
 
     // Fetch order items with product details
-    const { data: items, error: itemsError } = await supabase
+    // Use supabaseAdmin to bypass RLS
+    const { data: items, error: itemsError } = await supabaseAdmin
         .from('order_items')
         .select(`
             quantity,

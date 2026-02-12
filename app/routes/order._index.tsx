@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/popover";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase.server";
 import { getNoticeSnapshot, type NoticeSnapshot } from "@/lib/notices.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order._index";
@@ -166,7 +167,7 @@ export async function action({ request }: Route.ActionArgs) {
 
     // Duplicate Order Check (Phone + Delivery Date)
     if (!payload.confirmDuplicate) {
-        const { data: existingOrders, error: checkError } = await supabase
+        const { data: existingOrders, error: checkError } = await supabaseAdmin
             .from('orders')
             .select('id, order_number')
             .eq('phone', result.data.phone)
@@ -240,7 +241,7 @@ export async function action({ request }: Route.ActionArgs) {
     // - Transaction for order + items (all-or-nothing)
     // - Price calculation from products table
     // - Edit token generation
-    const { data: orderResult, error: orderError } = await supabase
+    const { data: orderResult, error: orderError } = await supabaseAdmin
         .rpc('create_order_with_items', {
             p_apartment_id: orderInfo.apartment,  // UUID now instead of TEXT
             p_tower: orderInfo.tower,
