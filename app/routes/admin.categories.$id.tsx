@@ -32,6 +32,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateCache } from "@/lib/cache.server";
+import { invalidateNoticeSnapshot } from "@/lib/notices.server";
+import type { Route } from "./+types/admin.categories.$id";
 
 const categorySchema = z.object({
     name: z.string().min(1, "영문 이름을 입력해주세요"),
@@ -96,6 +99,9 @@ export async function action({ request, params }: { request: Request; params: { 
             }, { status: 500 });
         }
 
+        invalidateCache('order-products');
+        invalidateNoticeSnapshot();
+
         throw redirect("/admin/categories");
     }
 
@@ -147,6 +153,9 @@ export async function action({ request, params }: { request: Request; params: { 
             details: error.message
         }, { status: 500 });
     }
+
+    invalidateCache('order-products');
+    await invalidateNoticeSnapshot();
 
     throw redirect("/admin/categories");
 }

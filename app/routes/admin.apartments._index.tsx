@@ -26,6 +26,7 @@ import {
 import { requireAuth } from "@/lib/auth.server";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { PageContainer } from "@/components/ui/container";
+import { invalidateCache } from "@/lib/cache.server";
 import type { Route } from "./+types/admin.apartments._index";
 
 interface Apartment {
@@ -101,6 +102,8 @@ export async function action({ request }: Route.ActionArgs) {
             return data({ error: `삭제 실패: ${error.message}` }, { status: 500 });
         }
 
+        invalidateCache('order-apartments');
+
         return data({ success: true });
     }
 
@@ -115,6 +118,8 @@ export async function action({ request }: Route.ActionArgs) {
         if (error) {
             return data({ error: `상태 변경 실패: ${error.message}` }, { status: 500 });
         }
+
+        invalidateCache('order-apartments');
 
         return data({ success: true });
     }
