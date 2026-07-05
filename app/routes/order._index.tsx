@@ -68,7 +68,7 @@ const orderSchema = z.object({
     phone: z.string().regex(phoneRegex, "Please enter a 10-digit number (10자리 숫자로 입력해주세요)"),
     items: z.array(z.object({
         productId: z.string(),
-        quantity: z.number().min(0),
+        quantity: z.number().int().min(0).max(999),
     })).refine((items) => items.some(item => item.quantity > 0), {
         message: "Please select at least 1 item (최소 1개 이상의 상품을 선택해주세요)",
         path: ["root"], // attach error to root
@@ -95,10 +95,12 @@ export async function loader() {
         getOrSetCache('order-products', async () => {
             const { data } = await supabase
                 .from('products')
-                .select('id, name, name_ko, price, sort_order, category_id, is_active, categories(id, name, name_ko, sort_order)')
+                .select('id, name, name_ko, price, sort_order, category_id, is_active, categories(id, name, name_ko, sort_order, is_active)')
                 .eq('is_active', true)
                 .order('sort_order', { ascending: true });
-            return data || [];
+            // Hide products whose category has been deactivated. Products with no
+            // category stay visible.
+            return (data || []).filter((p: any) => !p.categories || p.categories.is_active !== false);
         }, PRODUCT_CACHE_TTL),
         getNoticeSnapshot()
     ]);
@@ -146,7 +148,12 @@ export async function action({ request }: Route.ActionArgs) {
         return data({ error: "Invalid submission format (제출 형식이 올바르지 않습니다)" }, { status: 400 });
     }
 
-    const payload = JSON.parse(payloadString);
+    let payload: any;
+    try {
+        payload = JSON.parse(payloadString);
+    } catch {
+        return data({ error: "Invalid submission format (제출 형식이 올바르지 않습니다)" }, { status: 400 });
+    }
     // Parse dates: JSON has strings
     if (payload.delivery_date) {
         payload.delivery_date = new Date(payload.delivery_date);
