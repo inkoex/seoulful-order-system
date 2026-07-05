@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { getNoticeSnapshot, invalidateNoticeSnapshot } from "@/lib/notices.server";
+import { createOrderGrant, verifyOrderGrant } from "@/lib/orderAccess.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.edit.$id";
 
@@ -35,7 +36,7 @@ const editSchema = z.object({
     }),
     delivery_date: z.date(),
     notes: z.string().optional(),
-    token: z.string().uuid(),
+    grant: z.string().min(1),
 });
 
 type EditFormValues = z.infer<typeof editSchema>;
@@ -44,31 +45,39 @@ type EditFormValues = z.infer<typeof editSchema>;
 export async function loader({ params, request }: Route.LoaderArgs) {
     const orderId = params.id;
     const url = new URL(request.url);
-    const token = url.searchParams.get('token');
+    const grant = url.searchParams.get('g');
     const mode = url.searchParams.get('mode');
 
-    if (!token) {
+    // Access is granted by a short-lived signed grant, not the permanent edit_token.
+    if (!verifyOrderGrant(orderId, grant)) {
         return data({
             error: "접근 권한이 없습니다. 올바른 링크를 사용해주세요."
         }, { status: 403 });
     }
 
-    const [orderDataResult, noticeSnapshot] = await Promise.all([
-        supabaseAdmin.rpc('get_order_for_edit', { p_order_id: orderId, p_token: token }),
+    const [orderResult, itemsResult, noticeSnapshot] = await Promise.all([
+        // edit_token is intentionally NOT selected — it must not reach the browser.
+        supabaseAdmin
+            .from('orders')
+            .select('id, order_number, customer_name, phone, apartment, tower, flat_number, delivery_date, payment_method, notes, is_locked, status, created_at')
+            .eq('id', orderId)
+            .single(),
+        supabaseAdmin
+            .from('order_items')
+            .select('product_id, quantity, unit_price, subtotal')
+            .eq('order_id', orderId),
         getNoticeSnapshot()
     ]);
 
-    const { data: orderData, error: orderError } = orderDataResult;
-
-    if (orderError || !orderData) {
+    if (orderResult.error || !orderResult.data) {
         return data({
-            error: "접근 권한이 없습니다. 올바른 링크를 사용해주세요."
-        }, { status: 403 });
+            error: "주문을 찾을 수 없습니다."
+        }, { status: 404 });
     }
 
     const order = {
-        ...orderData.order,
-        order_items: orderData.items || []
+        ...orderResult.data,
+        order_items: itemsResult.data || []
     };
 
     // Fetch all products for form
@@ -82,7 +91,7 @@ export async function loader({ params, request }: Route.LoaderArgs) {
         order,
         products: products || [],
         isLocked: order.is_locked,
-        token,
+        grant: grant as string,
         noticeSnapshot,
         mode
     };
@@ -102,23 +111,27 @@ export async function action({ request, params }: Route.ActionArgs) {
     if (payload.delivery_date) {
         payload.delivery_date = new Date(payload.delivery_date);
     }
-    const token = payload.token;
+
+    // Authorize via the signed grant (not the permanent edit_token).
+    if (!verifyOrderGrant(orderId, payload.grant)) {
+        return data({ error: "접근 권한이 없습니다." }, { status: 403 });
+    }
 
     const noticeSnapshot = await getNoticeSnapshot();
     if (!noticeSnapshot.orderingOpen) {
         return data({ error: "현재 주문 기간이 아닙니다. WhatsApp으로 문의해주세요." }, { status: 400 });
     }
 
-    // Validate token
+    // Load the order (the grant already proved ownership). The edit_token is read
+    // here server-side to call the update RPC and never leaves the server.
     const { data: existingOrder, error: fetchError } = await supabaseAdmin
         .from('orders')
         .select('edit_token, is_locked, delivery_date, created_at, order_items(product_id, quantity), notes')
         .eq('id', orderId)
-        .eq('edit_token', token)
         .single();
 
     if (fetchError || !existingOrder) {
-        return data({ error: "접근 권한이 없습니다." }, { status: 403 });
+        return data({ error: "주문을 찾을 수 없습니다." }, { status: 404 });
     }
 
     if (existingOrder.is_locked) {
@@ -169,26 +182,13 @@ export async function action({ request, params }: Route.ActionArgs) {
 
     const { items, delivery_date, notes } = result.data;
 
-    // Calculate new total
-    const { data: dbProducts } = await supabaseAdmin.from('products').select('*');
-    const productMap = new Map(dbProducts?.map(p => [p.id, p]) || []);
-
     const activeItems = items.filter(i => i.quantity > 0);
-    const orderItemsData = activeItems.map(item => {
-        const product = productMap.get(item.productId);
-        const unitPrice = product?.price || 0;
-        return {
-            product_id: item.productId,
-            quantity: item.quantity,
-            unit_price: unitPrice,
-            subtotal: unitPrice * item.quantity
-        };
-    });
-
-    const totals = calculateOrderTotals(orderItemsData);
-    const subtotalValue = totals.subtotal;
-    const deliveryFeeValue = totals.deliveryFee;
-    const finalTotalAmount = totals.total;
+    // Pricing and limit enforcement are server-authoritative inside the RPC; it
+    // only needs product ids and quantities.
+    const rpcItems = activeItems.map(item => ({
+        product_id: item.productId,
+        quantity: item.quantity
+    }));
 
     // Track changes for order_history
     const changedFields: any = {};
@@ -237,25 +237,33 @@ export async function action({ request, params }: Route.ActionArgs) {
         };
     }
 
-    const { data: success, error: updateError } = await supabaseAdmin.rpc('update_order_with_token', {
+    const { data: rpcResult, error: updateError } = await supabaseAdmin.rpc('update_order_with_token', {
         p_order_id: orderId,
-        p_token: token,
+        p_token: existingOrder.edit_token,
         p_delivery_date: newDateStr,
         p_notes: notes || null,
-        p_subtotal: subtotalValue,
-        p_delivery_fee: deliveryFeeValue,
-        p_total_amount: finalTotalAmount,
-        p_items: orderItemsData
+        p_items: rpcItems,
+        p_notice_id: noticeSnapshot.notice?.id ?? null,
+        p_changed_by: 'customer'
     });
 
-    if (updateError || !success) {
-        return data({
-            error: "주문 수정에 실패했습니다.",
-            details: updateError?.message || "Invalid token or locked order"
-        }, { status: 500 });
+    if (updateError) {
+        // The RPC raises NOTICE_*_LIMIT_EXCEEDED when a cap was hit meanwhile.
+        if (updateError.message?.includes("NOTICE_")) {
+            invalidateNoticeSnapshot();
+            return data({ error: "주문 가능 수량을 초과했습니다. 남은 수량이 변경되었으니 다시 확인해주세요." }, { status: 409 });
+        }
+        return data({ error: "주문 수정에 실패했습니다.", details: updateError.message }, { status: 500 });
     }
 
-    // Log to order_history
+    if (!rpcResult?.success) {
+        const message = rpcResult?.reason === "LOCKED"
+            ? "마감된 주문입니다. WhatsApp으로 연락주세요."
+            : "접근 권한이 없습니다.";
+        return data({ error: message }, { status: 400 });
+    }
+
+    // Log detailed field-level changes to order_history.
     if (Object.keys(changedFields).length > 0) {
         await supabaseAdmin.from('order_history').insert({
             order_id: orderId,
@@ -265,7 +273,7 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     invalidateNoticeSnapshot();
-    return redirect(`/order/complete?id=${orderId}`);
+    return redirect(`/order/complete?id=${orderId}&g=${createOrderGrant(orderId)}`);
 }
 
 // --- Component ---
@@ -294,7 +302,7 @@ export default function OrderEditPage() {
         );
     }
 
-    const { order, products, isLocked, token, noticeSnapshot, mode } = loaderData;
+    const { order, products, isLocked, grant, noticeSnapshot, mode } = loaderData;
     const isNoticeClosed = !noticeSnapshot?.orderingOpen;
     const isViewMode = mode === "view";
 
@@ -314,7 +322,7 @@ export default function OrderEditPage() {
             })),
             delivery_date: new Date(order.delivery_date),
             notes: order.notes || "",
-            token,
+            grant,
         } as EditFormValues,
     });
 

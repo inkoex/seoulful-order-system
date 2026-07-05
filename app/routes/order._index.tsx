@@ -53,6 +53,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { getNoticeSnapshot, invalidateNoticeSnapshot, type NoticeSnapshot } from "@/lib/notices.server";
+import { createOrderGrant } from "@/lib/orderAccess.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order._index";
 
@@ -278,7 +279,8 @@ export async function action({ request }: Route.ActionArgs) {
 
     // orderResult contains: { id, order_number, edit_token, total_amount }
     invalidateNoticeSnapshot();
-    return redirect(`/order/complete?id=${orderResult.id}`);
+    const grant = createOrderGrant(orderResult.id);
+    return redirect(`/order/complete?id=${orderResult.id}&g=${grant}`);
 }
 
 
