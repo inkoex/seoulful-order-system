@@ -53,6 +53,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription }
 import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase.server";
 import { getNoticeSnapshot, invalidateNoticeSnapshot, type NoticeSnapshot } from "@/lib/notices.server";
+import { createOrderGrant } from "@/lib/orderAccess.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order._index";
 
@@ -252,11 +253,20 @@ export async function action({ request }: Route.ActionArgs) {
             p_payment_method: orderInfo.payment_method,
             p_notes: orderInfo.notes || '',
             p_entry_channel: orderInfo.entry_channel,
-            p_items: activeItems
+            p_items: activeItems,
+            p_notice_id: noticeSnapshot.notice?.id ?? null
         });
 
     if (orderError) {
         console.error("Order Creation Error:", orderError);
+        // The RPC enforces notice limits atomically and raises NOTICE_*_LIMIT_EXCEEDED
+        // when a cap is hit (e.g. another order filled it since the page loaded).
+        if (orderError.message?.includes("NOTICE_")) {
+            invalidateNoticeSnapshot();
+            return data({
+                error: "주문 가능 수량을 초과했습니다. 남은 수량이 변경되었으니 다시 확인해주세요. (Order limit reached — remaining quantity changed, please review.)"
+            }, { status: 409 });
+        }
         return data({
             error: "Failed to save order (주문 저장에 실패했습니다)",
             details: orderError.message
@@ -269,7 +279,8 @@ export async function action({ request }: Route.ActionArgs) {
 
     // orderResult contains: { id, order_number, edit_token, total_amount }
     invalidateNoticeSnapshot();
-    return redirect(`/order/complete?id=${orderResult.id}`);
+    const grant = createOrderGrant(orderResult.id);
+    return redirect(`/order/complete?id=${orderResult.id}&g=${grant}`);
 }
 
 

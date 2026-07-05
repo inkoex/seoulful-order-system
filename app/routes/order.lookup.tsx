@@ -17,13 +17,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin } from "@/lib/supabase.server";
 import { getNoticeSnapshot } from "@/lib/notices.server";
+import { createOrderGrant } from "@/lib/orderAccess.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.lookup";
 
 // --- Zod Schema ---
 const lookupSchema = z.object({
+    order_number: z.string().trim().min(1, "주문번호를 입력해주세요"),
     phone: z.string().regex(/^\d{10}$/, "10자리 숫자로 입력해주세요"),
 });
 
@@ -48,9 +50,18 @@ export async function action({ request }: Route.ActionArgs) {
         }, { status: 400 });
     }
 
+    // Access model: an order is identified by order number AND phone (both must
+    // match). Runs server-side with the service role; edit_token is never selected
+    // or returned. Edit access is conveyed by a short-lived signed grant instead.
     const [noticeSnapshot, ordersResult] = await Promise.all([
         getNoticeSnapshot(),
-        supabase.rpc('search_orders_by_phone', { p_phone: result.data.phone })
+        supabaseAdmin
+            .from('orders')
+            .select('id, order_number, delivery_date, total_amount, status, created_at')
+            .eq('order_number', result.data.order_number)
+            .eq('phone', result.data.phone)
+            .neq('status', 'cancelled')
+            .order('delivery_date', { ascending: false })
     ]);
 
     const { data: orders, error } = ordersResult;
@@ -80,7 +91,7 @@ export async function action({ request }: Route.ActionArgs) {
             (!noticeEnd || createdAt <= noticeEnd)
         );
         const canEdit = inNoticeWindow && deliveryDate > today;
-        return { ...order, can_edit: canEdit };
+        return { ...order, can_edit: canEdit, grant: createOrderGrant(order.id) };
     });
 
     return data({ success: true, orders: ordersWithEdit });
@@ -95,7 +106,7 @@ export default function OrderLookupPage() {
 
     const form = useForm<LookupFormValues>({
         resolver: zodResolver(lookupSchema),
-        defaultValues: { phone: "" },
+        defaultValues: { order_number: "", phone: "" },
     });
     const statusLabel: Record<string, string> = {
         received: "Received",
@@ -136,6 +147,26 @@ export default function OrderLookupPage() {
                 <CardContent className="px-6 pb-6 pt-2 md:px-8 md:pb-8 md:pt-2">
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                            <FormField
+                                control={form.control}
+                                name="order_number"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Order number</FormLabel>
+                                        <FormControl>
+                                            <Input
+                                                placeholder="ORD-260706-001"
+                                                type="text"
+                                                {...field}
+                                            />
+                                        </FormControl>
+                                        <FormDescription>
+                                            The order number from your confirmation
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
                             <FormField
                                 control={form.control}
                                 name="phone"
@@ -214,7 +245,7 @@ export default function OrderLookupPage() {
                                                     </div>
                                                 </div>
                                                 <Button asChild className="w-full mt-4" variant="outline">
-                                                    <Link to={`/order/edit/${order.id}?token=${order.edit_token}${order.can_edit ? "" : "&mode=view"}`}>
+                                                    <Link to={`/order/edit/${order.id}?g=${order.grant}${order.can_edit ? "" : "&mode=view"}`}>
                                                         {order.can_edit ? "Edit order" : "View order"}
                                                     </Link>
                                                 </Button>

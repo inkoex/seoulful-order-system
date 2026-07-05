@@ -4,8 +4,8 @@ import { Link, useLoaderData } from "react-router";
 import { CheckCircle2, MessageCircle, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
 import { supabaseAdmin } from "@/lib/supabase.server";
+import { verifyOrderGrant } from "@/lib/orderAccess.server";
 import { PageContainer } from "@/components/ui/container";
 import type { Route } from "./+types/order.complete";
 
@@ -29,23 +29,29 @@ interface OrderData {
     delivery_fee: number;
     delivery_date: string;
     customer_name: string;
-    edit_token: string;
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
     const url = new URL(request.url);
     const orderId = url.searchParams.get("id");
+    const grant = url.searchParams.get("g");
     const origin = url.origin;
 
     if (!orderId) {
         throw new Response("Order ID is missing", { status: 400 });
     }
 
-    // Fetch order basic info
-    // Use supabaseAdmin to bypass RLS
+    // Require a valid signed grant (issued on order placement / verified lookup).
+    // Prevents viewing an arbitrary order by guessing its id.
+    if (!verifyOrderGrant(orderId, grant)) {
+        throw new Response("Not authorized", { status: 403 });
+    }
+
+    // Fetch order basic info. Note: edit_token is intentionally NOT selected —
+    // it must never reach the browser. The `grant` carries edit access instead.
     const { data: order, error: orderError } = await supabaseAdmin
         .from('orders')
-        .select('order_number, total_amount, subtotal, delivery_fee, delivery_date, customer_name, edit_token, id')
+        .select('order_number, total_amount, subtotal, delivery_fee, delivery_date, customer_name, id')
         .eq('id', orderId)
         .single();
 
@@ -75,16 +81,17 @@ export async function loader({ request }: Route.LoaderArgs) {
     return {
         order: order as OrderData,
         items: (items || []) as OrderItem[],
-        origin
+        origin,
+        grant: grant as string
     };
 }
 
 export default function OrderCompletePage() {
-    const { order, items, origin } = useLoaderData<typeof loader>();
+    const { order, items, origin, grant } = useLoaderData<typeof loader>();
 
     // Generate WhatsApp share URL
     const whatsappUrl = (() => {
-        const editUrl = `${origin}/order/edit/${order.id}?token=${order.edit_token}`;
+        const editUrl = `${origin}/order/edit/${order.id}?g=${grant}`;
 
         const totals = calculateOrderTotals(items);
         const itemsList = items
@@ -201,7 +208,7 @@ export default function OrderCompletePage() {
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row gap-3 justify-center pb-12">
                     <Button asChild variant="outline" className="rounded-xl border-2 border-brand-charcoal/10 hover:border-brand-primary hover:bg-brand-primary/5">
-                        <Link to={`/order/edit/${order.id}?token=${order.edit_token}`}>Edit order</Link>
+                        <Link to={`/order/edit/${order.id}?g=${grant}`}>Edit order</Link>
                     </Button>
                     <Button asChild variant="premium">
                         <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">

@@ -40,9 +40,12 @@ export async function loader({ request }: Route.LoaderArgs) {
     const statusFilter = url.searchParams.get("status") || "all";
     const deliveryDateFilter = url.searchParams.get("delivery_date");
     const searchQuery = url.searchParams.get("search") || "";
+    const searchTerm = sanitizeSearch(searchQuery);
 
-    const page = parseInt(url.searchParams.get("page") || "1", 10);
-    const pageSize = parseInt(url.searchParams.get("pageSize") || "50", 10);
+    const pageRaw = parseInt(url.searchParams.get("page") || "1", 10);
+    const pageSizeRaw = parseInt(url.searchParams.get("pageSize") || "50", 10);
+    const page = Number.isFinite(pageRaw) && pageRaw > 0 ? pageRaw : 1;
+    const pageSize = Number.isFinite(pageSizeRaw) && pageSizeRaw > 0 ? Math.min(pageSizeRaw, 200) : 50;
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
@@ -74,8 +77,8 @@ export async function loader({ request }: Route.LoaderArgs) {
         query = query.eq('delivery_date', deliveryDateFilter);
     }
 
-    if (searchQuery) {
-        query = query.or(`customer_name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,order_number.ilike.%${searchQuery}%`);
+    if (searchTerm) {
+        query = query.or(`customer_name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,order_number.ilike.%${searchTerm}%`);
     }
 
     const { data: orders, error, count } = await query.range(from, to);
@@ -84,8 +87,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     const baseKpiQuery = () => {
         let q = supabaseAdmin.from('orders').select('id', { count: 'exact', head: true });
         if (deliveryDateFilter) q = q.eq('delivery_date', deliveryDateFilter);
-        if (searchQuery) {
-            q = q.or(`customer_name.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%,order_number.ilike.%${searchQuery}%`);
+        if (searchTerm) {
+            q = q.or(`customer_name.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%,order_number.ilike.%${searchTerm}%`);
         }
         return q;
     };
@@ -119,6 +122,23 @@ export async function loader({ request }: Route.LoaderArgs) {
     });
 }
 
+const VALID_STATUSES = ["received", "ready", "delivered", "paid", "cancelled"] as const;
+
+// Strip characters that have special meaning in a PostgREST `.or()` filter
+// string (comma separates conditions, parens group them, % / _ are wildcards),
+// so a search like "Kim, Lee (A)" can't break or alter the query grammar.
+function sanitizeSearch(input: string): string {
+    return input.replace(/[,()%_*\\]/g, " ").trim();
+}
+
+// Build the status/cancellation-metadata patch consistently across intents.
+function statusUpdate(status: string): Record<string, unknown> {
+    if (status === "cancelled") {
+        return { status, cancelled_at: new Date().toISOString() };
+    }
+    return { status, cancelled_at: null, cancelled_reason: null };
+}
+
 export async function action({ request }: Route.ActionArgs) {
     await requireAuth(request);
 
@@ -149,9 +169,12 @@ export async function action({ request }: Route.ActionArgs) {
             }
         } else if (intent === "change_status") {
             const newStatus = formData.get("status");
+            if (typeof newStatus !== "string" || !VALID_STATUSES.includes(newStatus as any)) {
+                return data({ error: "잘못된 주문 상태입니다" }, { status: 400 });
+            }
             const { error } = await supabaseAdmin
                 .from('orders')
-                .update({ status: newStatus })
+                .update(statusUpdate(newStatus))
                 .eq('id', orderId);
             if (error) throw error;
         } else if (intent === "cancel") {
@@ -177,9 +200,12 @@ export async function action({ request }: Route.ActionArgs) {
         } else if (intent === "bulk_change_status") {
             const orderIds = JSON.parse(formData.get("orderIds") as string) as string[];
             const newStatus = formData.get("status") as string;
+            if (!VALID_STATUSES.includes(newStatus as any)) {
+                return data({ error: "잘못된 주문 상태입니다" }, { status: 400 });
+            }
             const { error } = await supabaseAdmin
                 .from('orders')
-                .update({ status: newStatus })
+                .update(statusUpdate(newStatus))
                 .in('id', orderIds);
             if (error) throw error;
         } else if (intent === "bulk_toggle_lock") {

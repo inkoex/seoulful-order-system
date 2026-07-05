@@ -184,27 +184,29 @@ export async function action({ request, params }: ActionFunctionArgs) {
         return data({ error: "공지 수정에 실패했습니다" }, { status: 500 });
     }
 
-    await supabaseAdmin.from("notice_products").delete().eq("notice_id", noticeId);
-    await supabaseAdmin.from("notice_limits").delete().eq("notice_id", noticeId);
+    const targetProductIds = !isAllProducts ? productIds : [];
 
-    if (!isAllProducts && productIds.length > 0) {
-        const noticeProducts = productIds.map((productId) => ({ notice_id: noticeId, product_id: productId }));
-        await supabaseAdmin.from("notice_products").insert(noticeProducts);
-    }
-
-    const limits: { notice_id: string; type: "total" | "product"; product_id?: string | null; max_quantity: number }[] = [];
+    const limits: { type: "total" | "product"; product_id: string | null; max_quantity: number }[] = [];
     if (!Number.isNaN(totalLimit) && totalLimit > 0) {
-        limits.push({ notice_id: noticeId, type: "total", max_quantity: totalLimit, product_id: null });
+        limits.push({ type: "total", product_id: null, max_quantity: totalLimit });
     }
 
     limitProductIds.forEach((productId, index) => {
         const qty = toNumber(limitQuantities[index]);
         if (!productId || Number.isNaN(qty) || qty <= 0) return;
-        limits.push({ notice_id: noticeId, type: "product", product_id: productId, max_quantity: qty });
+        limits.push({ type: "product", product_id: productId, max_quantity: qty });
     });
 
-    if (limits.length > 0) {
-        await supabaseAdmin.from("notice_limits").insert(limits);
+    // Replace targeting atomically so a mid-way failure can't strip an active
+    // notice of its limits (all-or-nothing inside one transaction).
+    const { error: targetingError } = await supabaseAdmin.rpc("replace_notice_targeting", {
+        p_notice_id: noticeId,
+        p_product_ids: targetProductIds,
+        p_limits: limits,
+    });
+
+    if (targetingError) {
+        return data({ error: "공지 대상/제한 저장에 실패했습니다" }, { status: 500 });
     }
 
     invalidateNoticeSnapshot();

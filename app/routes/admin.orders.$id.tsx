@@ -73,6 +73,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     });
 }
 
+const VALID_STATUSES = ["received", "ready", "delivered", "paid", "cancelled"] as const;
+
 export async function action({ request, params }: Route.ActionArgs) {
     await requireAuth(request);
 
@@ -81,12 +83,31 @@ export async function action({ request, params }: Route.ActionArgs) {
 
     if (intent === "update_status") {
         const status = formData.get("status");
-        await supabaseAdmin
+        if (typeof status !== "string" || !VALID_STATUSES.includes(status as any)) {
+            return data({ error: "잘못된 주문 상태입니다 (Invalid order status)" }, { status: 400 });
+        }
+
+        // Keep cancellation metadata consistent: set it when cancelling here,
+        // clear it when moving the order back out of the cancelled state.
+        const updates: Record<string, unknown> = { status };
+        if (status === "cancelled") {
+            updates.cancelled_at = new Date().toISOString();
+        } else {
+            updates.cancelled_at = null;
+            updates.cancelled_reason = null;
+        }
+
+        const { error: updateError } = await supabaseAdmin
             .from('orders')
-            .update({ status })
+            .update(updates)
             .eq('id', params.id);
 
-        // Log to history
+        if (updateError) {
+            console.error("Status update failed:", updateError);
+            return data({ error: "주문 상태 변경에 실패했습니다 (Failed to update status)" }, { status: 500 });
+        }
+
+        // Log to history only after the change actually succeeded.
         await supabaseAdmin.from('order_history').insert({
             order_id: params.id,
             changed_fields: { status },
@@ -94,30 +115,44 @@ export async function action({ request, params }: Route.ActionArgs) {
         });
 
     } else if (intent === "toggle_lock") {
-        const { data: order } = await supabaseAdmin
+        const { data: order, error: fetchError } = await supabaseAdmin
             .from('orders')
             .select('is_locked')
             .eq('id', params.id)
             .single();
 
-        if (order) {
-            await supabaseAdmin
-                .from('orders')
-                .update({ is_locked: !order.is_locked })
-                .eq('id', params.id);
-
-            await supabaseAdmin.from('order_history').insert({
-                order_id: params.id,
-                changed_fields: { is_locked: !order.is_locked },
-                changed_by: 'admin'
-            });
+        if (fetchError || !order) {
+            return data({ error: "주문을 찾을 수 없습니다 (Order not found)" }, { status: 404 });
         }
+
+        const { error: updateError } = await supabaseAdmin
+            .from('orders')
+            .update({ is_locked: !order.is_locked })
+            .eq('id', params.id);
+
+        if (updateError) {
+            console.error("Lock toggle failed:", updateError);
+            return data({ error: "잠금 상태 변경에 실패했습니다 (Failed to toggle lock)" }, { status: 500 });
+        }
+
+        await supabaseAdmin.from('order_history').insert({
+            order_id: params.id,
+            changed_fields: { is_locked: !order.is_locked },
+            changed_by: 'admin'
+        });
     } else if (intent === "update_notes") {
         const notes = formData.get("admin_notes");
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
             .from('orders')
             .update({ admin_notes: notes })
             .eq('id', params.id);
+
+        if (updateError) {
+            console.error("Notes update failed:", updateError);
+            return data({ error: "메모 저장에 실패했습니다 (Failed to save notes)" }, { status: 500 });
+        }
+    } else {
+        return data({ error: "알 수 없는 요청입니다 (Unknown intent)" }, { status: 400 });
     }
 
     invalidateNoticeSnapshot();
