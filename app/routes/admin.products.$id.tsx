@@ -112,6 +112,22 @@ export async function action({ request, params }: Route.ActionArgs) {
     const intent = formData.get("intent");
 
     if (intent === "delete") {
+        // Block deletion when the product is referenced by past orders, so we
+        // don't destroy historical order line items (or hit a raw FK error).
+        const { count, error: refError } = await supabaseAdmin
+            .from('order_items')
+            .select('id', { count: 'exact', head: true })
+            .eq('product_id', params.id);
+
+        if (refError) {
+            return data({ error: "상품 삭제 확인에 실패했습니다" }, { status: 500 });
+        }
+        if ((count || 0) > 0) {
+            return data({
+                error: "이 상품은 기존 주문에 포함되어 삭제할 수 없습니다. 대신 '비활성'으로 전환해주세요."
+            }, { status: 409 });
+        }
+
         // Delete product
         const { error } = await supabaseAdmin
             .from('products')

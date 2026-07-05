@@ -81,7 +81,10 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!noticeId || typeof noticeId !== "string") {
             return data({ error: "공지 ID가 없습니다" }, { status: 400 });
         }
-        await supabaseAdmin.from("notices").update({ status: "closed" }).eq("id", noticeId);
+        const { error } = await supabaseAdmin.from("notices").update({ status: "closed" }).eq("id", noticeId);
+        if (error) {
+            return data({ error: "공지 마감에 실패했습니다" }, { status: 500 });
+        }
         invalidateNoticeSnapshot();
         return data({ success: true });
     }
@@ -91,8 +94,14 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!noticeId || typeof noticeId !== "string") {
             return data({ error: "공지 ID가 없습니다" }, { status: 400 });
         }
-        await supabaseAdmin.from("notices").update({ status: "closed" }).neq("id", noticeId).eq("status", "active");
-        await supabaseAdmin.from("notices").update({ status: "active" }).eq("id", noticeId);
+        const { error: closeError } = await supabaseAdmin.from("notices").update({ status: "closed" }).neq("id", noticeId).eq("status", "active");
+        if (closeError) {
+            return data({ error: "기존 공지 마감에 실패했습니다" }, { status: 500 });
+        }
+        const { error: activateError } = await supabaseAdmin.from("notices").update({ status: "active" }).eq("id", noticeId);
+        if (activateError) {
+            return data({ error: "공지 활성화에 실패했습니다" }, { status: 500 });
+        }
         invalidateNoticeSnapshot();
         return data({ success: true });
     }
@@ -102,9 +111,19 @@ export async function action({ request }: ActionFunctionArgs) {
         if (!noticeId || typeof noticeId !== "string") {
             return data({ error: "공지 ID가 없습니다" }, { status: 400 });
         }
-        await supabaseAdmin.from("notice_limits").delete().eq("notice_id", noticeId);
-        await supabaseAdmin.from("notice_products").delete().eq("notice_id", noticeId);
-        await supabaseAdmin.from("notices").delete().eq("id", noticeId);
+        // Clear targeting atomically, then remove the notice.
+        const { error: targetingError } = await supabaseAdmin.rpc("replace_notice_targeting", {
+            p_notice_id: noticeId,
+            p_product_ids: [],
+            p_limits: [],
+        });
+        if (targetingError) {
+            return data({ error: "공지 삭제에 실패했습니다" }, { status: 500 });
+        }
+        const { error: deleteError } = await supabaseAdmin.from("notices").delete().eq("id", noticeId);
+        if (deleteError) {
+            return data({ error: "공지 삭제에 실패했습니다" }, { status: 500 });
+        }
         invalidateNoticeSnapshot();
         return data({ success: true });
     }
