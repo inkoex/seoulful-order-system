@@ -812,7 +812,7 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
             </Card>
 
             {/* Duplicate Order Confirmation Dialog */}
-            <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => !open && window.location.reload()}>
+            <AlertDialog open={!!duplicateWarning} onOpenChange={(open) => { if (!open) setDuplicateWarning(null); }}>
                 <AlertDialogContent className="rounded-3xl">
                     <AlertDialogHeader>
                         <AlertDialogTitle className="flex items-center gap-2">
@@ -826,7 +826,9 @@ export default function OrderPage({ loaderData }: Route.ComponentProps) {
                     <AlertDialogFooter className="flex-col sm:flex-row gap-2">
                         <AlertDialogCancel className="rounded-full">Cancel</AlertDialogCancel>
                         <AlertDialogAction
-                            onClick={() => {
+                            disabled={isSubmitting}
+                            onClick={(e) => {
+                                if (isSubmitting) { e.preventDefault(); return; }
                                 const values = form.getValues();
                                 const formData = new FormData();
                                 formData.append("payload", JSON.stringify({ ...values, confirmDuplicate: true }));
