@@ -24,5 +24,6 @@ export function formatDisplayDate(date: Date | string): string {
 export function formatCurrency(amount: number | string): string {
     const value = typeof amount === 'string' ? Number(amount) : amount;
     if (isNaN(value)) return '₹0';
-    return `₹${value.toLocaleString()}`;
+    // Fixed locale so server and client render identically (no hydration mismatch).
+    return `₹${value.toLocaleString('en-IN')}`;
 }
