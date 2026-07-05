@@ -1,22 +1,20 @@
 -- ============================================================================
--- Secure order edit + access model (part 2 of 2)
+-- Secure order edit RPC (additive — safe to apply anytime)
 -- ----------------------------------------------------------------------------
--- MUST be applied together with the app deploy: it changes the signature of
--- update_order_with_token and drops the anon lookup RPCs the old app used.
+-- Adds a NEW overload of update_order_with_token with server-authoritative
+-- pricing, atomic notice-limit enforcement, and product validation. History is
+-- written by the app (detailed field-level diff), so this RPC does not.
 --
---   * update_order_with_token : server-authoritative pricing (ignores client
---       totals), atomic notice-limit enforcement, product validation. History
---       is written by the app (detailed field-level diff), so this RPC does not.
---       Callable by service_role only (the app calls it via the service key).
---   * search_orders_by_phone / get_order_for_edit : DROPPED. The new app looks
---       orders up by order number + phone server-side and authorizes edits with
---       a short-lived signed grant; these anon-callable, token-leaking RPCs are
---       no longer used and are removed to shrink the attack surface.
+-- This is ADDITIVE: it does not drop the old update_order_with_token overload or
+-- the legacy lookup RPCs, so the currently deployed app and the new app both keep
+-- working. No deploy-timing coordination needed — push the app whenever.
+--
+-- The legacy functions are removed later by 20260706000003_drop_legacy_order_rpcs
+-- once the new app is confirmed live.
 --
 -- Depends on enforce_notice_limits from part 1 (20260706000000).
+-- Callable by service_role only (the app calls it via the service key).
 -- ============================================================================
-
-DROP FUNCTION IF EXISTS public.update_order_with_token(uuid,uuid,text,text,numeric,numeric,numeric,jsonb);
 
 CREATE OR REPLACE FUNCTION public.update_order_with_token(
     p_order_id UUID,
@@ -127,7 +125,3 @@ REVOKE ALL ON FUNCTION public.update_order_with_token(
 GRANT EXECUTE ON FUNCTION public.update_order_with_token(
     uuid,uuid,text,text,jsonb,uuid,text
 ) TO service_role;
-
--- Remove the retired anon-callable lookup RPCs (no longer used by the app).
-DROP FUNCTION IF EXISTS public.search_orders_by_phone(text);
-DROP FUNCTION IF EXISTS public.get_order_for_edit(uuid,uuid);
