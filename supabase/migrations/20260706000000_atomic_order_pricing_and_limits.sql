@@ -1,15 +1,17 @@
 -- ============================================================================
--- Atomic order pricing + notice-limit enforcement
+-- Atomic order pricing + notice-limit enforcement (part 1 of 2)
 -- ----------------------------------------------------------------------------
--- Moves delivery-fee pricing and notice quantity limits INTO the database so
--- that create and edit share one race-free source of truth.
+-- Backward-compatible: create_order_with_items gains an OPTIONAL p_notice_id,
+-- so the currently deployed app (which omits it) keeps working while this is
+-- applied ahead of the app change. Immediately fixes the delivery-fee omission.
 --
---   * create_order_with_items  : adds delivery fee, writes subtotal/delivery_fee,
---                                enforces notice limits atomically
---   * update_order_with_token  : recomputes price server-side (ignores client
---                                totals), enforces limits, writes order_history
 --   * enforce_notice_limits    : shared helper; locks the notice row and checks
 --                                total + per-product caps against live usage
+--   * create_order_with_items  : adds delivery fee, writes subtotal/delivery_fee,
+--                                enforces notice limits atomically
+--
+-- The edit path (update_order_with_token) changes signature and ships together
+-- with the app in a follow-up migration (part 2).
 --
 -- Delivery fee rule mirrors app/utils/order.ts: subtotal in (0, 500) -> 30 else 0.
 -- Usage window mirrors app/lib/notices.server.ts: orders created in
@@ -132,9 +134,8 @@ END;
 $$;
 
 -- ----------------------------------------------------------------------------
--- create_order_with_items: adds p_notice_id, delivery fee, subtotal, and
--- atomic limit enforcement. p_notice_id defaults to NULL so existing callers
--- keep working until the app passes the active notice id.
+-- create_order_with_items: adds p_notice_id (optional), delivery fee, subtotal,
+-- and atomic limit enforcement.
 -- ----------------------------------------------------------------------------
 DROP FUNCTION IF EXISTS public.create_order_with_items(uuid,text,text,text,text,date,text,text,text,jsonb);
 
@@ -234,126 +235,3 @@ $$;
 GRANT EXECUTE ON FUNCTION public.create_order_with_items(
     uuid,text,text,text,text,date,text,text,text,jsonb,uuid
 ) TO anon, authenticated;
-
--- ----------------------------------------------------------------------------
--- update_order_with_token: server-authoritative pricing, atomic limits,
--- product validation, and audit history. Client-supplied money params removed.
--- Returns JSONB so callers can distinguish failure reasons.
--- ----------------------------------------------------------------------------
-DROP FUNCTION IF EXISTS public.update_order_with_token(uuid,uuid,text,text,numeric,numeric,numeric,jsonb);
-
-CREATE OR REPLACE FUNCTION public.update_order_with_token(
-    p_order_id UUID,
-    p_token UUID,
-    p_delivery_date TEXT,
-    p_notes TEXT,
-    p_items JSONB,
-    p_notice_id UUID DEFAULT NULL,
-    p_changed_by TEXT DEFAULT 'customer'
-) RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-    v_order RECORD;
-    v_subtotal NUMERIC := 0;
-    v_delivery_fee NUMERIC := 0;
-    v_total_amount NUMERIC := 0;
-    v_item JSONB;
-    v_pid UUID;
-    v_qty INTEGER;
-    v_price NUMERIC;
-BEGIN
-    -- Validate token, lock the order row.
-    SELECT id, is_locked INTO v_order
-      FROM orders
-     WHERE id = p_order_id AND edit_token = p_token
-     FOR UPDATE;
-
-    IF NOT FOUND THEN
-        RETURN jsonb_build_object('success', false, 'reason', 'INVALID_TOKEN');
-    END IF;
-    IF v_order.is_locked THEN
-        RETURN jsonb_build_object('success', false, 'reason', 'LOCKED');
-    END IF;
-
-    -- Enforce limits, excluding this order's current items.
-    IF p_notice_id IS NOT NULL THEN
-        PERFORM public.enforce_notice_limits(p_notice_id, p_items, p_order_id);
-    END IF;
-
-    -- Server-authoritative pricing + product validation.
-    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-    LOOP
-        v_qty := COALESCE((v_item->>'quantity')::INTEGER, 0);
-        IF v_qty <= 0 THEN CONTINUE; END IF;
-        v_pid := (v_item->>'product_id')::UUID;
-
-        SELECT price INTO v_price FROM products WHERE id = v_pid;
-        IF v_price IS NULL THEN
-            RAISE EXCEPTION 'Product not found: %', v_pid;
-        END IF;
-
-        -- Allow active products, or products already in this order (so a product
-        -- deactivated after ordering can remain, but new inactive ones can't be added).
-        IF NOT (
-            EXISTS (SELECT 1 FROM products WHERE id = v_pid AND is_active = true)
-            OR EXISTS (SELECT 1 FROM order_items WHERE order_id = p_order_id AND product_id = v_pid)
-        ) THEN
-            RAISE EXCEPTION 'Product not orderable: %', v_pid;
-        END IF;
-
-        v_subtotal := v_subtotal + (v_price * v_qty);
-    END LOOP;
-
-    IF v_subtotal <= 0 THEN
-        RAISE EXCEPTION 'Order must contain at least one item';
-    END IF;
-
-    v_delivery_fee := CASE WHEN v_subtotal > 0 AND v_subtotal < 500 THEN 30 ELSE 0 END;
-    v_total_amount := v_subtotal + v_delivery_fee;
-
-    UPDATE orders SET
-        delivery_date = p_delivery_date::DATE,
-        notes = p_notes,
-        subtotal = v_subtotal,
-        delivery_fee = v_delivery_fee,
-        total_amount = v_total_amount,
-        updated_at = now()
-    WHERE id = p_order_id;
-
-    DELETE FROM order_items WHERE order_id = p_order_id;
-    FOR v_item IN SELECT * FROM jsonb_array_elements(p_items)
-    LOOP
-        v_qty := COALESCE((v_item->>'quantity')::INTEGER, 0);
-        IF v_qty <= 0 THEN CONTINUE; END IF;
-        v_pid := (v_item->>'product_id')::UUID;
-        SELECT price INTO v_price FROM products WHERE id = v_pid;
-        INSERT INTO order_items (order_id, product_id, quantity, unit_price, subtotal)
-        VALUES (p_order_id, v_pid, v_qty, v_price, v_price * v_qty);
-    END LOOP;
-
-    INSERT INTO order_history (order_id, changed_fields, changed_by)
-    VALUES (p_order_id, jsonb_build_object(
-        'action', 'customer_edit',
-        'subtotal', v_subtotal,
-        'delivery_fee', v_delivery_fee,
-        'total_amount', v_total_amount
-    ), p_changed_by);
-
-    RETURN jsonb_build_object(
-        'success', true,
-        'subtotal', v_subtotal,
-        'delivery_fee', v_delivery_fee,
-        'total_amount', v_total_amount
-    );
-END;
-$$;
-
--- NOTE: anon grant intentionally omitted here — workstream B moves this RPC to
--- service-role-only (called from the server loader/action after phone+order-number
--- verification). Until then it is callable only by roles already holding EXECUTE.
-GRANT EXECUTE ON FUNCTION public.update_order_with_token(
-    uuid,uuid,text,text,jsonb,uuid,text
-) TO authenticated;
