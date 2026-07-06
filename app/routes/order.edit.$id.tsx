@@ -29,7 +29,7 @@ import type { Route } from "./+types/order.edit.$id";
 const editSchema = z.object({
     items: z.array(z.object({
         productId: z.string(),
-        quantity: z.number().min(0),
+        quantity: z.number().int().min(0).max(999),
     })).refine((items) => items.some(item => item.quantity > 0), {
         message: "최소 1개 이상의 상품을 선택해주세요",
         path: ["root"],
@@ -107,7 +107,12 @@ export async function action({ request, params }: Route.ActionArgs) {
         return data({ error: "Invalid submission format" }, { status: 400 });
     }
 
-    const payload = JSON.parse(payloadString);
+    let payload: any;
+    try {
+        payload = JSON.parse(payloadString);
+    } catch {
+        return data({ error: "Invalid submission format" }, { status: 400 });
+    }
     if (payload.delivery_date) {
         payload.delivery_date = new Date(payload.delivery_date);
     }

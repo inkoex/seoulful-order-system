@@ -40,7 +40,12 @@ export async function action({ request }: Route.ActionArgs) {
         return data({ error: "Invalid submission format" }, { status: 400 });
     }
 
-    const payload = JSON.parse(payloadString);
+    let payload: any;
+    try {
+        payload = JSON.parse(payloadString);
+    } catch {
+        return data({ error: "Invalid submission format" }, { status: 400 });
+    }
     const result = lookupSchema.safeParse(payload);
 
     if (!result.success) {

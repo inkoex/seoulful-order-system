@@ -88,7 +88,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         throw new Response("공지를 찾을 수 없습니다", { status: 404 });
     }
 
-    const { data: products } = await supabaseAdmin
+    const { data: products, error: productsError } = await supabaseAdmin
         .from("products")
         .select(`
             id,
@@ -103,6 +103,12 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         `)
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
+
+    // Fail loudly rather than render an empty product list — an empty list would
+    // let a save drop the notice's targeted products silently.
+    if (productsError) {
+        throw new Response("상품 목록을 불러오지 못했습니다", { status: 500 });
+    }
 
     return data({ notice, products: products || [] });
 }

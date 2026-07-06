@@ -87,14 +87,10 @@ export async function loader({ request }: Route.LoaderArgs) {
         .order('sort_order', { ascending: true });
 
     if (aptError || !apartments || apartments.length === 0) {
+        // Don't fabricate apartments with fake ids — submitting one would fail the
+        // FK on insert. Return an empty list so the form can prompt to add one.
         console.warn("No active apartments found", aptError);
-        return data({
-            products,
-            apartments: [
-                { id: 'fallback-1', name: 'Karle', name_ko: '칼레' },
-                { id: 'fallback-2', name: 'Other', name_ko: '기타' }
-            ]
-        });
+        return data({ products, apartments: [] });
     }
 
     return data({ products, apartments });
