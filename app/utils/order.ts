@@ -2,11 +2,12 @@
  * 주문 금액 관련 정책을 관리하는 유틸리티입니다.
  */
 
-export interface OrderItem {
+// Minimal shape needed to compute totals. See app/models/index.ts for the full
+// OrderItem; this intentionally accepts just the pricing-relevant fields.
+export interface OrderTotalsItem {
     quantity: number;
     unit_price?: number;
     subtotal?: number;
-    [key: string]: any;
 }
 
 export interface OrderTotals {
@@ -19,7 +20,7 @@ export interface OrderTotals {
  * 상품 목록을 기반으로 소계, 배송비, 총액을 계산합니다.
  * 배송비 정책: 500루피 미만 주문 시 30루피 부과, 그 이상은 무료.
  */
-export function calculateOrderTotals(items: OrderItem[]): OrderTotals {
+export function calculateOrderTotals(items: OrderTotalsItem[]): OrderTotals {
     const subtotal = items.reduce((acc, item) => {
         const itemSubtotal = Number(item.subtotal);
         if (!isNaN(itemSubtotal) && itemSubtotal > 0) return acc + itemSubtotal;

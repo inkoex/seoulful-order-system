@@ -1,5 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
+// This is a single-region service (India). Pin the server runtime timezone to
+// IST — baked in rather than a deploy-time env var, since the region does not
+// change — so admin-entered notice times and delivery dates are interpreted and
+// rendered in local time instead of the host's UTC (e.g. on Vercel). Every
+// date-sensitive server path imports this module, so setting it here runs before
+// any request-time Date usage. Node calls tzset() on assignment.
+if (typeof process !== 'undefined' && process.env.TZ !== 'Asia/Kolkata') {
+    process.env.TZ = 'Asia/Kolkata';
+}
+
 /**
  * Server-side Supabase client with service role key
  *
